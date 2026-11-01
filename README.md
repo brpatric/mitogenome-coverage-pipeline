@@ -35,7 +35,22 @@ Set up one folder per specimen:
     scripts/                  the contents of this repository's scripts/ folder
 ```
 
-Open `scripts/run_pipeline.sh` and check the settings block at the top. Set `THREADS`, and if you rotated the assembly (for example to begin at *cox1*), set `ORIGINAL_ASSEMBLY="original_assembly.fasta"` so the driver verifies the rotation.
+The file names above are the defaults; your files can have any names. Open `scripts/run_pipeline.sh` and edit the settings block at the top to match them:
+
+```
+ASSEMBLY="assembly.fasta"      # your mitogenome FASTA
+R1="R1.fastq"                  # your forward reads
+R2="R2.fastq"                  # your reverse reads
+THREADS=8                      # processor threads available
+ORIGINAL_ASSEMBLY=""           # if rotated: the unrotated assembler output
+```
+
+- **`ASSEMBLY`, `R1`, `R2`:** set these to your mitogenome FASTA and your forward and reverse read files. Give each as a file name in the specimen folder or as a path relative to it, for example `Sample1_R1.fastq`, `reads/Sample1_R1.fastq` or `../shared_reads/Sample1_R1.fastq`. Absolute paths (beginning with `/`, such as `/mnt/c/...`) do not work in this version.
+- **`THREADS`:** the number of processor threads to use.
+- **`ORIGINAL_ASSEMBLY`:** if you rotated the assembly (for example to begin at *cox1*), set this to the unrotated assembler output, named the same way, so the driver verifies the rotation. Leave it empty otherwise.
+- Leave `MIN_PAD`, `SD_MULTIPLIER` and `MIN_OVERLAP` at their defaults (300, 4, 20).
+
+In step 1, use your own file name for the unrotated assembly.
 
 1. Check the assembler output for leftover circularization overlap, before any rotation (exit code 0 = none of 20 bp or more):
    ```
