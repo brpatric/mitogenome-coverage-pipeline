@@ -67,7 +67,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-__version__ = "4.1"   # coverage pipeline version
+__version__ = "4.1.1"   # coverage pipeline version
 
 # ============================= EDIT THESE ===================================
 PLOT_TITLE = "Per-base Read Coverage"     # set to the full title you want shown, e.g. "Per-base Read Coverage: Genus species"

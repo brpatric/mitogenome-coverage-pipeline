@@ -6,7 +6,7 @@ Per-base coverage calculation and visualization for circularized mitochondrial
 genomes assembled from paired-end Illumina data, with correction for the
 coverage artifact introduced at the circular origin.
 
-Version 4.1 (November 2026). See section 13 for the version history.
+Version 4.1.1 (November 2026). See section 13 for the version history.
 
 
 ================================================================================
@@ -181,8 +181,8 @@ Place these in one working folder, with the scripts in a scripts/ subfolder:
 
     <specimen>/
         assembly.fasta        <- circularized mitogenome, single contig
-        R1.fastq              <- forward reads
-        R2.fastq              <- reverse reads
+        R1.fastq.gz           <- forward reads (.fastq or .fastq.gz)
+        R2.fastq.gz           <- reverse reads (.fastq or .fastq.gz)
         scripts/
             run_pipeline.sh
             00_check_terminal_overlap.py
@@ -251,9 +251,9 @@ block at the top:
 
   Setting            Default          Notes
   -----------------  ---------------  --------------------------------------
-  ASSEMBLY           assembly.fasta   change if your filenames differ
-  R1                 R1.fastq         change if your filenames differ
-  R2                 R2.fastq         change if your filenames differ
+  ASSEMBLY           assembly.fasta   your mitogenome FASTA
+  R1                 R1.fastq.gz      your forward reads
+  R2                 R2.fastq.gz      your reverse reads
   THREADS            8                set to available CPU threads
   OUTDIR             coverage_run     all output lands here
   MIN_PAD            300              floor on padding length K
@@ -265,6 +265,19 @@ block at the top:
                                       driver then verifies the rotation
 
 MIN_PAD and SD_MULTIPLIER rarely need changing.
+
+FILE SETTINGS. Set ASSEMBLY, R1, R2 (and ORIGINAL_ASSEMBLY, if used) to
+your own files. Each may be a file name in the specimen folder, a path
+relative to it, or an absolute path, for example:
+
+    R1="Sample1_R1.fastq.gz"
+    R1="../shared_reads/Sample1_R1.fastq.gz"
+    R1="/mnt/c/data/Sample1_R1.fastq.gz"
+
+Reads may be plain (.fastq) or gzipped (.fastq.gz); they are used where
+they are, not copied. The assembly is copied into coverage_run/ as
+assembly.fasta. If any file is not found, the driver stops before running
+anything and names the missing file.
 
 WHAT THE DRIVER DOES
 --------------------
@@ -593,6 +606,14 @@ the mean, consider also reporting the median depth (from
 ================================================================================
 13. VERSION HISTORY
 ================================================================================
+
+  Version 4.1.1 (November 2026)
+    - Reads may be .fastq or .fastq.gz and are used in place (not copied
+      into coverage_run/).
+    - File settings accept names, relative paths or absolute paths; a
+      missing file stops the run with a clear message.
+    - run_provenance.txt records full input paths.
+    - Computed values are unchanged from version 4.1.
 
   Version 4.1 (November 2026)
     - Provenance: run_pipeline.sh writes run_provenance.txt; every script

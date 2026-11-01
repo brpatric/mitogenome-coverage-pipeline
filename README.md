@@ -2,7 +2,7 @@
 
 Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file.
 
-**Version 4.1** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
+**Version 4.1.1** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
 ## Why a correction is needed
 
@@ -18,7 +18,7 @@ The pipeline pads the reference by appending its first *K* bp to its 3′ end, w
 | SAMtools | 1.13 | `sudo apt install samtools` |
 | Python | 3.8 or later | `pip install numpy pandas matplotlib` |
 | Assembly | FASTA, one circularized contig | Nucleotide and IUPAC codes only (no NOVOPlasty `*` flags) |
-| Reads | Paired-end FASTQ (R1, R2) | Single-end data are not supported |
+| Reads | Paired-end FASTQ (R1, R2), plain (`.fastq`) or gzipped (`.fastq.gz`) | Used where they are; no need to unzip or copy. Single-end data are not supported |
 
 The mapping steps run under Linux (on Windows, inside WSL with Ubuntu). The final Python step also runs in Windows Python/IDLE.
 
@@ -30,8 +30,8 @@ Set up one folder per specimen:
 <specimen>/
     assembly.fasta            circularized mitogenome (rotated, if you rotated it)
     original_assembly.fasta   if rotated: the unrotated assembler output
-    R1.fastq
-    R2.fastq
+    R1.fastq.gz               forward reads (.fastq or .fastq.gz)
+    R2.fastq.gz               reverse reads
     scripts/                  the contents of this repository's scripts/ folder
 ```
 
@@ -39,13 +39,13 @@ The file names above are the defaults; your files can have any names. Open `scri
 
 ```
 ASSEMBLY="assembly.fasta"      # your mitogenome FASTA
-R1="R1.fastq"                  # your forward reads
-R2="R2.fastq"                  # your reverse reads
+R1="R1.fastq.gz"               # your forward reads
+R2="R2.fastq.gz"               # your reverse reads
 THREADS=8                      # processor threads available
 ORIGINAL_ASSEMBLY=""           # if rotated: the unrotated assembler output
 ```
 
-- **`ASSEMBLY`, `R1`, `R2`:** set these to your mitogenome FASTA and your forward and reverse read files. Give each as a file name in the specimen folder or as a path relative to it, for example `Sample1_R1.fastq`, `reads/Sample1_R1.fastq` or `../shared_reads/Sample1_R1.fastq`. Absolute paths (beginning with `/`, such as `/mnt/c/...`) do not work in this version.
+- **`ASSEMBLY`, `R1`, `R2`:** set these to your mitogenome FASTA and your forward and reverse read files. Give each as a file name in the specimen folder, a path relative to it, or an absolute path, for example `Sample1_R1.fastq.gz`, `../shared_reads/Sample1_R1.fastq.gz` or `/mnt/c/data/Sample1_R1.fastq.gz`. Reads can be gzipped or not. The driver stops with a clear message if a file is not found.
 - **`THREADS`:** the number of processor threads to use.
 - **`ORIGINAL_ASSEMBLY`:** if you rotated the assembly (for example to begin at *cox1*), set this to the unrotated assembler output, named the same way, so the driver verifies the rotation. Leave it empty otherwise.
 - Leave `MIN_PAD`, `SD_MULTIPLIER` and `MIN_OVERLAP` at their defaults (300, 4, 20).
@@ -117,10 +117,10 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 | `scripts/03_compare_to_control.py` | Optional standalone control comparison, for profiles folded with earlier versions |
 | `scripts/diagnose_padding_artifact.sh` | Optional troubleshooting report for the padded window |
 | `docs/Coverage_pipeline_quick_start.docx` | Two-page quick start guide |
-| `docs/Coverage_calculation_and_visualization_protocol_v4.1.docx` | Full step-by-step protocol with embedded scripts |
+| `docs/Coverage_calculation_and_visualization_protocol_v4.1.1.docx` | Full step-by-step protocol with embedded scripts |
 | `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.1), Results and figure-legend templates, and references |
+| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.1.1), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
 
 ## Limitations

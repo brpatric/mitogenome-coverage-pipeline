@@ -7,7 +7,9 @@
 # (Ubuntu). See README.txt for the full step-by-step explanation of what
 # each phase does and why.
 #
-# Pipeline version 4.1. Writes run_provenance.txt (date, pipeline and tool
+# Pipeline version 4.1.1. Reads may be .fastq or .fastq.gz and are used in
+# place (not copied); file settings accept names, relative paths or
+# absolute paths. Writes run_provenance.txt (date, pipeline and tool
 # versions, settings, input checksums and check results) to the output
 # folder. Phase 6 builds the unpadded control depth file
 # (prelim_filtered_depth.txt) used for validation.
@@ -17,9 +19,11 @@
 set -euo pipefail
 
 # --------------------------- USER-EDITABLE SETTINGS -------------------------
+# File settings: a file name in the specimen folder (the folder you run
+# this script from), a path relative to it, or an absolute path.
 ASSEMBLY="assembly.fasta"      # your circularized mitogenome FASTA
-R1="R1.fastq"                  # forward reads
-R2="R2.fastq"                  # reverse reads
+R1="R1.fastq.gz"               # forward reads (.fastq or .fastq.gz)
+R2="R2.fastq.gz"               # reverse reads (.fastq or .fastq.gz)
 THREADS=8
 OUTDIR="coverage_run"          # everything gets written here
 MIN_PAD=300                    # floor on padding length K, in bp
@@ -34,13 +38,31 @@ ORIGINAL_ASSEMBLY=""           # OPTIONAL: if you rotated the assembly, the
                                # records the result. Leave empty otherwise.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # -----------------------------------------------------------------------------
-PIPELINE_VERSION="4.1"
+PIPELINE_VERSION="4.1.1"
+
+# Resolve input paths against the specimen folder (where this is run from),
+# before moving into the output folder. Absolute paths are kept as given.
+abspath() { case "$1" in /*) printf '%s\n' "$1" ;; *) printf '%s\n' "$PWD/$1" ;; esac; }
+ASSEMBLY_PATH="$(abspath "$ASSEMBLY")"
+R1_PATH="$(abspath "$R1")"
+R2_PATH="$(abspath "$R2")"
+ORIGINAL_PATH=""
+[ -n "$ORIGINAL_ASSEMBLY" ] && ORIGINAL_PATH="$(abspath "$ORIGINAL_ASSEMBLY")"
+
+for f in "$ASSEMBLY_PATH" "$R1_PATH" "$R2_PATH" ${ORIGINAL_PATH:+"$ORIGINAL_PATH"}; do
+    if [ ! -f "$f" ]; then
+        echo "!! ERROR: input file not found: $f"
+        echo "!! Check ASSEMBLY, R1, R2 and ORIGINAL_ASSEMBLY at the top of"
+        echo "!! run_pipeline.sh. Nothing was run."
+        exit 1
+    fi
+done
 
 mkdir -p "$OUTDIR"
 cd "$OUTDIR"
-cp "../$ASSEMBLY" ./assembly.fasta
-cp "../$R1" ./R1.fastq
-cp "../$R2" ./R2.fastq
+# The assembly is small, so a working copy is kept with the results. The
+# read files are used where they are (no copy), compressed or not.
+cp "$ASSEMBLY_PATH" ./assembly.fasta
 
 # ---------------------------- provenance record ------------------------------
 PROV="run_provenance.txt"
@@ -56,10 +78,10 @@ echo "samtools           : $(samtools --version 2>/dev/null | head -1 | sed 's/^
 echo "python3            : $(python3 --version 2>&1 | sed 's/^Python //')"
 echo ""
 echo "[Settings]"
-echo "ASSEMBLY           : $ASSEMBLY"
-echo "ORIGINAL_ASSEMBLY  : ${ORIGINAL_ASSEMBLY:-(not set)}"
-echo "R1                 : $R1"
-echo "R2                 : $R2"
+echo "ASSEMBLY           : $ASSEMBLY_PATH"
+echo "ORIGINAL_ASSEMBLY  : ${ORIGINAL_PATH:-(not set)}"
+echo "R1                 : $R1_PATH"
+echo "R2                 : $R2_PATH"
 echo "THREADS            : $THREADS"
 echo "MIN_PAD            : $MIN_PAD"
 echo "SD_MULTIPLIER      : $SD_MULTIPLIER"
@@ -68,10 +90,9 @@ echo "bowtie2 mode       : --local (default scoring and reporting)"
 echo "alignment filter   : samtools view -f 2 (properly paired), no MAPQ threshold"
 echo ""
 echo "[Input checksums (MD5)]"
-md5sum assembly.fasta R1.fastq R2.fastq | awk '{printf "%-18s : %s\n", $2, $1}'
-if [ -n "$ORIGINAL_ASSEMBLY" ]; then
-    printf "%-18s : %s\n" "$ORIGINAL_ASSEMBLY" "$(md5sum "../$ORIGINAL_ASSEMBLY" | cut -d' ' -f1)"
-fi
+for f in "$ASSEMBLY_PATH" "$R1_PATH" "$R2_PATH" ${ORIGINAL_PATH:+"$ORIGINAL_PATH"}; do
+    printf "%s  %s\n" "$(md5sum "$f" | cut -d' ' -f1)" "$f"
+done
 echo ""
 echo "[Scripts]"
 for f in 00_check_terminal_overlap.py 01_build_padded_reference.py verify_rotation.py; do
@@ -104,7 +125,7 @@ if [ -n "$ORIGINAL_ASSEMBLY" ]; then
         echo "!! found in $SCRIPT_DIR. Stopping."
         exit 1
     fi
-    cp "../$ORIGINAL_ASSEMBLY" ./original_assembly.fasta
+    cp "$ORIGINAL_PATH" ./original_assembly.fasta
     set +e
     python3 "$ROT_SCRIPT" original_assembly.fasta assembly.fasta 2>&1 | tee rotation_check.log
     ROT_RC=${PIPESTATUS[0]}
@@ -151,7 +172,7 @@ echo "============================================================"
 echo "PHASE 1: Preliminary mapping to estimate insert size"
 echo "============================================================"
 bowtie2-build assembly.fasta assembly_index
-bowtie2 --local -p "$THREADS" -x assembly_index -1 R1.fastq -2 R2.fastq -S prelim.sam
+bowtie2 --local -p "$THREADS" -x assembly_index -1 "$R1_PATH" -2 "$R2_PATH" -S prelim.sam
 samtools view -bS prelim.sam | samtools sort -o prelim.sorted.bam
 samtools index prelim.sorted.bam
 samtools stats prelim.sorted.bam > prelim.stats.txt
@@ -192,7 +213,7 @@ echo "============================================================"
 echo "PHASE 3: Map reads to padded reference"
 echo "============================================================"
 bowtie2-build padded_assembly.fasta padded_assembly_index
-bowtie2 --local -p "$THREADS" -x padded_assembly_index -1 R1.fastq -2 R2.fastq -S mapped.sam
+bowtie2 --local -p "$THREADS" -x padded_assembly_index -1 "$R1_PATH" -2 "$R2_PATH" -S mapped.sam
 samtools view -bS mapped.sam | samtools sort -o mapped.sorted.bam
 samtools index mapped.sorted.bam
 

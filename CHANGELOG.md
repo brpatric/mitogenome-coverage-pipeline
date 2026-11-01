@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.1.1 (November 2026)
+
+- `run_pipeline.sh`: read files may be `.fastq` or `.fastq.gz` and are used where they are, not copied into `coverage_run/`.
+- `ASSEMBLY`, `R1`, `R2` and `ORIGINAL_ASSEMBLY` accept file names, relative paths or absolute paths; the driver stops with a clear message if a file is missing.
+- `run_provenance.txt` records full input paths.
+- Computed values are unchanged from 4.1.
+
 ## 4.1 (November 2026)
 
 - Provenance: `run_pipeline.sh` writes `run_provenance.txt` (date, software versions, settings, MD5 checksums of inputs and scripts, check results, *K*, alignment counts).
