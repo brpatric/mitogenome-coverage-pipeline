@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this pipeline, please cite it as below, giving the version you ran."
+title: "Mitogenome Coverage Pipeline"
+abstract: "Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file."
+type: software
+authors:
+  - family-names: "Patrick"
+    given-names: "L. Brian"
+    affiliation: "Department of Biological Sciences, Dakota Wesleyan University, Mitchell, SD, USA"
+version: "4.1.1"
+date-released: "2026-11-01"
+repository-code: "https://github.com/brpatric/mitogenome-coverage-pipeline"
+url: "https://brpatric.github.io/mitogenome-coverage-pipeline/"
+keywords:
+  - mitogenome
+  - mitochondrial genome
+  - read coverage
+  - circular genome
+  - Bowtie2
+  - SAMtools

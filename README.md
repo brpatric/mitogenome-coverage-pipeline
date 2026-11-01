@@ -122,10 +122,33 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
 | `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.1.1), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
+| `CITATION.cff` | Citation information (powers GitHub's “Cite this repository” button) |
 
 ## Limitations
 
 The pipeline expects a single circular contig and paired-end reads. The overlap check finds only exact suffix–prefix matches, so an overlap containing mismatches is not detected, and a genuine repeat at the origin can trigger it. Folding assumes one primary alignment per read, which holds with Bowtie2's default reporting (not with `-k`).
+
+## How to cite this
+
+If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
+
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.1.1. https://github.com/brpatric/mitogenome-coverage-pipeline
+
+BibTeX:
+
+```bibtex
+@software{patrick_2026_mitogenome_coverage,
+  author  = {Patrick, L. Brian},
+  title   = {Mitogenome Coverage Pipeline},
+  version = {4.1.1},
+  year    = {2026},
+  url     = {https://github.com/brpatric/mitogenome-coverage-pipeline}
+}
+```
+
+GitHub's **Cite this repository** button (in the right-hand panel of the repository page) gives the same citation in APA and BibTeX formats, from `CITATION.cff`.
+
+Please also cite the tools the pipeline runs: Bowtie2 (Langmead & Salzberg 2012), SAMtools (Danecek et al. 2021), NumPy (Harris et al. 2020), pandas (McKinney 2010) and Matplotlib (Hunter 2007); see References below. A ready-made Methods paragraph with these citations is in `docs/Coverage_Methods.docx`.
 
 ## References
 
