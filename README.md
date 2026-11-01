@@ -91,7 +91,7 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 | `docs/Coverage_calculation_and_visualization_protocol_v4.1.docx` | Full step-by-step protocol with embedded scripts |
 | `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts |
+| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.1), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
 
 ## Limitations
