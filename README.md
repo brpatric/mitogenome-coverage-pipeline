@@ -51,6 +51,20 @@ Open `scripts/run_pipeline.sh` and check the settings block at the top. Set `THR
    python3 02_fold_and_plot.py
    ```
 
+### Optional steps
+
+These are not needed for a routine run; step 4 already performs the control comparison.
+
+- **Standalone control comparison (`03_compare_to_control.py`).** Use this for a depth profile folded with a version of `02_fold_and_plot.py` earlier than 4.0, which did not run the comparison itself. Copy `<prefix>_folded_depth.txt`, `prelim_filtered_depth.txt` and `padding_metadata.txt` next to the script, then run it. It writes `<prefix>_control_comparison.txt` with the same values step 4 would report:
+  ```
+  python3 03_compare_to_control.py
+  ```
+- **Troubleshooting report (`diagnose_padding_artifact.sh`).** Use this if coverage near position 1 looks wrong after checking that no MAPQ filter was added. Run it from inside `coverage_run/`. It reports MAPQ distributions in the padded window, soft-clipping near the junction and a test for reads counted twice:
+  ```
+  cd coverage_run
+  bash ../scripts/diagnose_padding_artifact.sh
+  ```
+
 ## Outputs
 
 | File | Contents | What to look for |
