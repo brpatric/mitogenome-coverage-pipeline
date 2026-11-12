@@ -36,9 +36,9 @@ TABLE OF CONTENTS
 
 This pipeline maps paired-end Illumina reads back to a circularized mitogenome
 assembly and produces per-base depth statistics and publication-quality
-coverage figures. It was developed for assemblies produced by NOVOPlasty [1],
-but works with any correctly circularized single-contig assembly, including
-GetOrganelle output.
+coverage figures. It works with a correctly circularized single-contig
+assembly from any organelle assembler, for example NOVOPlasty [1] or
+GetOrganelle [7].
 
 The pipeline runs in two parts, which can be run together in one command
 (put 02_fold_and_plot.py next to run_pipeline.sh) or separately:
@@ -199,14 +199,19 @@ Windows Python/IDLE, from any folder (section 6.2). The optional
 assembly.fasta REQUIREMENTS
 ---------------------------
   - A single circularized contig. Only the first FASTA record is used; a
-    warning is printed if more are present.
+    warning is printed if more are present. Some assemblers write more than
+    one sequence or alternative paths (GetOrganelle, for example, can report
+    several paths through the assembly graph); supply only the circular
+    sequence you are using.
 
   - Non-redundant: the last base should be immediately followed, circularly,
     by the first base, with no leftover overlap from the circularization
     step.
 
   - Only nucleotide or IUPAC ambiguity characters (ACGTUNRYSWKMBDHV).
-    Anything else halts the run with the offending position reported.
+    Anything else halts the run with the offending position reported. Some
+    assemblers flag uncertain bases with other characters (NOVOPlasty, for
+    example, writes '*'); resolve these first (section 9).
 
 IF YOU ROTATED THE ASSEMBLY (e.g., TO BEGIN AT cox1)
 ----------------------------------------------------
@@ -527,8 +532,8 @@ Note that the interior means in this file are NOT the whole-genome means in
 THE END-WINDOW CHECK (version 4.2+)
 -----------------------------------
 The interior comparison cannot see the first and last K bp, which is exactly
-where padding and folding act. In two Hogna carolinensis specimens assembled
-with NOVOPlasty and rotated to begin at cox1, the folded profile showed
+where padding and folding act. In two Hogna carolinensis specimens rotated
+to begin at cox1, the folded profile showed
 excess depth over the first few hundred bases (at position 1, about 75%
 above the true value), although the interior comparison passed. Mapping the
 same reads to the unrotated assembly, where that region lies mid-sequence,
@@ -736,8 +741,13 @@ the mean, consider also reporting the median depth (from
     Science & Engineering 9(3):90-95. doi:10.1109/MCSE.2007.55
 
 [6] McKinney W. 2010. Data structures for statistical computing in Python.
-    Proceedings of the 9th Python in Science Conference, p. 56-61.
-    doi:10.25080/Majora-92bf1922-00a
+    In: van der Walt S, Millman J, editors. Proceedings of the 9th Python in
+    Science Conference. p. 56-61. doi:10.25080/Majora-92bf1922-00a
+
+[7] Jin JJ, Yu WB, Yang JB, Song Y, dePamphilis CW, Yi TS, Li DZ. 2020.
+    GetOrganelle: a fast and versatile toolkit for accurate de novo assembly
+    of organelle genomes. Genome Biology 21(1):241.
+    doi:10.1186/s13059-020-02154-5
 
 
 ================================================================================

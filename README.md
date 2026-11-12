@@ -17,7 +17,7 @@ The pipeline pads the reference by appending its first *K* bp to its 3′ end, w
 | Bowtie2 | 2.4.4 used in our analyses | `sudo apt install bowtie2` |
 | SAMtools | 1.13 | `sudo apt install samtools` |
 | Python | 3.8 or later | `pip install numpy pandas matplotlib` |
-| Assembly | FASTA, one circularized contig (e.g. from NOVOPlasty; Dierckxsens et al. 2017) | Nucleotide and IUPAC codes only (no NOVOPlasty `*` flags) |
+| Assembly | FASTA, one circularized contig from any organelle assembler (e.g. NOVOPlasty, Dierckxsens et al. 2017; GetOrganelle, Jin et al. 2020) | Nucleotide and IUPAC codes only; resolve any assembler-specific flags first (e.g. NOVOPlasty's `*`). If the assembler reports several sequences or paths, supply only the circular one you are using |
 | Reads | Paired-end FASTQ (R1, R2), plain (`.fastq`) or gzipped (`.fastq.gz`) | Used where they are; no need to unzip or copy. Single-end data are not supported |
 
 The mapping steps run under Linux (on Windows, inside WSL with Ubuntu). The final Python step also runs in Windows Python/IDLE.
@@ -107,7 +107,7 @@ Padding changes only how reads near the origin are placed, so alignments in the 
 
 ## End-window check
 
-The interior comparison cannot see the first and last *K* bp, which is exactly where padding and folding act. In two *Hogna carolinensis* specimens assembled with NOVOPlasty and rotated to begin at *cox1*, the folded profile showed excess depth over the first few hundred bases (at position 1, about 75% above the true value), although the interior comparison passed. Mapping the same reads to the unrotated assembly, where that region lies mid-sequence, gave a smooth profile. Simulated reads did not reproduce the effect, so it arises from features of particular read sets rather than from the folding arithmetic, and it cannot be ruled out in advance for any specimen.
+The interior comparison cannot see the first and last *K* bp, which is exactly where padding and folding act. In two *Hogna carolinensis* specimens rotated to begin at *cox1*, the folded profile showed excess depth over the first few hundred bases (at position 1, about 75% above the true value), although the interior comparison passed. Mapping the same reads to the unrotated assembly, where that region lies mid-sequence, gave a smooth profile. Simulated reads did not reproduce the effect, so it arises from features of particular read sets rather than from the folding arithmetic, and it cannot be ruled out in advance for any specimen.
 
 Since version 4.2, `run_pipeline.sh` therefore also maps the reads (Phase 8), unpadded, to a copy of the assembly starting halfway round the circle, so the original start and end lie deep in its interior. `02_fold_and_plot.py` compares that profile with the folded profile across the end windows in 200-bp bins. A bin fails if it differs by 10% or more **and** by 3× or more. If no bin fails, the folded profile is reported as before. If any bin fails, the end windows of the reported profile are taken from the origin-check mapping, the statistics file says so, and the folded profile is kept as `<prefix>_folded_depth_before_end_window_correction.txt`. Either way, the reported profile stays in the assembly's own coordinates (for example *cox1* first).
 
@@ -172,3 +172,4 @@ Please also cite the tools the pipeline runs: Bowtie2 (Langmead & Salzberg 2012)
 4. Harris CR, Millman KJ, van der Walt SJ, Gommers R, Virtanen P, Cournapeau D, Wieser E, Taylor J, Berg S, Smith NJ, Kern R, Picus M, Hoyer S, van Kerkwijk MH, Brett M, Haldane A, Fernández del Río J, Wiebe M, Peterson P, Gérard-Marchant P, Sheppard K, Reddy T, Weckesser W, Abbasi H, Gohlke C, Oliphant TE. 2020. Array programming with NumPy. *Nature* 585(7825): 357–362. [doi:10.1038/s41586-020-2649-2](https://doi.org/10.1038/s41586-020-2649-2)
 5. Hunter JD. 2007. Matplotlib: a 2D graphics environment. *Computing in Science & Engineering* 9(3): 90–95. [doi:10.1109/MCSE.2007.55](https://doi.org/10.1109/MCSE.2007.55)
 6. McKinney W. 2010. Data structures for statistical computing in Python. In: van der Walt S, Millman J, editors. *Proceedings of the 9th Python in Science Conference*. p. 56–61. [doi:10.25080/Majora-92bf1922-00a](https://doi.org/10.25080/Majora-92bf1922-00a)
+7. Jin JJ, Yu WB, Yang JB, Song Y, dePamphilis CW, Yi TS, Li DZ. 2020. GetOrganelle: a fast and versatile toolkit for accurate de novo assembly of organelle genomes. *Genome Biology* 21(1): 241. [doi:10.1186/s13059-020-02154-5](https://doi.org/10.1186/s13059-020-02154-5)
