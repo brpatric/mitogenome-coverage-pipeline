@@ -7,7 +7,7 @@ authors:
   - family-names: "Patrick"
     given-names: "L. Brian"
     affiliation: "Department of Biological Sciences, Dakota Wesleyan University, Mitchell, SD, USA"
-version: "4.2"
+version: "4.2.1"
 date-released: "2026-11-12"
 repository-code: "https://github.com/brpatric/mitogenome-coverage-pipeline"
 url: "https://brpatric.github.io/mitogenome-coverage-pipeline/"

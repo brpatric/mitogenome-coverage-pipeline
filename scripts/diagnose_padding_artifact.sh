@@ -26,7 +26,7 @@
 # Requires: samtools (already needed by the main pipeline)
 # =============================================================================
 set -uo pipefail
-PIPELINE_VERSION="4.2"
+PIPELINE_VERSION="4.2.1"
 
 SPECIMEN="$(basename "$(dirname "$(pwd)")")"
 STAMP="$(date +%Y%m%d)"

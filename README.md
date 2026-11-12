@@ -2,7 +2,7 @@
 
 Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file.
 
-**Version 4.2** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
+**Version 4.2.1** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
 ## Why a correction is needed
 
@@ -42,35 +42,30 @@ ASSEMBLY="assembly.fasta"      # your mitogenome FASTA
 R1="R1.fastq.gz"               # your forward reads
 R2="R2.fastq.gz"               # your reverse reads
 THREADS=8                      # processor threads available
+ROTATED=""                     # "yes" or "no"; leave empty to be asked
 ORIGINAL_ASSEMBLY=""           # if rotated: the unrotated assembler output
 ```
 
 - **`ASSEMBLY`, `R1`, `R2`:** set these to your mitogenome FASTA and your forward and reverse read files. Give each as a file name in the specimen folder, a path relative to it, or an absolute path, for example `Sample1_R1.fastq.gz`, `../shared_reads/Sample1_R1.fastq.gz` or `/mnt/c/data/Sample1_R1.fastq.gz`. Reads can be gzipped or not. The driver stops with a clear message if a file is not found.
 - **`THREADS`:** the number of processor threads to use.
-- **`ORIGINAL_ASSEMBLY`:** if you rotated the assembly (for example to begin at *cox1*), set this to the unrotated assembler output, named the same way, so the driver verifies the rotation. Leave it empty otherwise.
+- **`ROTATED`, `ORIGINAL_ASSEMBLY`:** whether you rotated the assembly (for example to begin at *cox1*) and, if so, the unrotated assembler output, named the same way. If you leave them empty, the driver asks when it starts. A run with no one to answer, such as a cluster job, stops with a message instead of guessing, so set them there. For a rotated assembly the driver checks the unrotated file for leftover circularization overlap, verifies that the rotation is exact, and stops if either check fails.
 - Leave `MIN_PAD`, `SD_MULTIPLIER` and `MIN_OVERLAP` at their defaults (300, 4, 20).
 
-In step 1, use your own file name for the unrotated assembly.
-
-1. Check the assembler output for leftover circularization overlap, before any rotation (exit code 0 = none of 20 bp or more):
-   ```
-   python3 scripts/00_check_terminal_overlap.py original_assembly.fasta
-   ```
-2. Run the driver from the specimen folder. Everything lands in `coverage_run/`:
+1. Run the driver from the specimen folder, and answer its questions if it asks. Everything lands in `coverage_run/`:
    ```
    bash scripts/run_pipeline.sh
    ```
-3. Copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to `02_fold_and_plot.py`.
-4. Set `PLOT_TITLE` near the top of `02_fold_and_plot.py`, then run it and enter an output prefix (for example `Genus_species_specimenID`) when asked:
+2. Copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to `02_fold_and_plot.py`.
+3. Set `PLOT_TITLE` near the top of `02_fold_and_plot.py`, then run it and enter an output prefix (for example `Genus_species_specimenID`) when asked:
    ```
    python3 02_fold_and_plot.py
    ```
 
 ### Optional steps
 
-These are not needed for a routine run; step 4 already runs both checks.
+These are not needed for a routine run; step 3 already runs both checks.
 
-- **Standalone control comparison (`03_compare_to_control.py`).** Use this for a depth profile folded with a version of `02_fold_and_plot.py` earlier than 4.0, which did not run the comparison itself. Copy `<prefix>_folded_depth.txt`, `prelim_filtered_depth.txt` and `padding_metadata.txt` next to the script, then run it. It writes `<prefix>_control_comparison.txt` with the same values step 4 would report:
+- **Standalone control comparison (`03_compare_to_control.py`).** Use this for a depth profile folded with a version of `02_fold_and_plot.py` earlier than 4.0, which did not run the comparison itself. Copy `<prefix>_folded_depth.txt`, `prelim_filtered_depth.txt` and `padding_metadata.txt` next to the script, then run it. It writes `<prefix>_control_comparison.txt` with the same values step 3 would report:
   ```
   python3 03_compare_to_control.py
   ```
@@ -110,7 +105,7 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 
 - **Do not add a MAPQ filter (`-q`).** Reads in the duplicated padding window align equally well to both copies and receive low mapping quality by design. Filtering them reintroduces the artifact. The proper-pair filter (`-f 2`) provides the quality control.
 - **Use Bowtie2 in `--local` mode**, as the driver does. End-to-end mode is unforgiving at the padded junction.
-- **Rotated assemblies:** run the overlap check on the assembler output before rotating, then verify that the rotated file is an exact cyclic shift (`verify_rotation.py`, or the `ORIGINAL_ASSEMBLY` setting).
+- **Rotated assemblies:** the overlap check must be run on the assembler output before rotating, and the rotated file must be an exact cyclic shift. Since version 4.2.1 the driver requires an answer on whether the assembly was rotated and, if it was, runs both checks itself.
 
 ## Repository contents
 
@@ -124,10 +119,10 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 | `scripts/03_compare_to_control.py` | Optional standalone control comparison, for profiles folded with earlier versions |
 | `scripts/diagnose_padding_artifact.sh` | Optional troubleshooting report for the padded window |
 | `docs/Coverage_pipeline_quick_start.docx` | Short quick start guide (three pages) |
-| `docs/Coverage_calculation_and_visualization_protocol_v4.2.docx` | Full step-by-step protocol with embedded scripts |
+| `docs/Coverage_calculation_and_visualization_protocol_v4.2.1.docx` | Full step-by-step protocol with embedded scripts |
 | `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.2), Results and figure-legend templates, and references |
+| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.2.1), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
 | `CITATION.cff` | Citation information (powers GitHub's “Cite this repository” button) |
 
@@ -139,7 +134,7 @@ The pipeline expects a single circular contig and paired-end reads. The overlap 
 
 If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.2. https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.2.1. https://github.com/brpatric/mitogenome-coverage-pipeline
 
 BibTeX:
 
@@ -147,7 +142,7 @@ BibTeX:
 @software{patrick_2026_mitogenome_coverage,
   author  = {Patrick, L. Brian},
   title   = {Mitogenome Coverage Pipeline},
-  version = {4.2},
+  version = {4.2.1},
   year    = {2026},
   url     = {https://github.com/brpatric/mitogenome-coverage-pipeline}
 }

@@ -6,7 +6,7 @@ Per-base coverage calculation and visualization for circularized mitochondrial
 genomes assembled from paired-end Illumina data, with correction for the
 coverage artifact introduced at the circular origin.
 
-Version 4.2 (November 2026). See section 13 for the version history.
+Version 4.2.1 (November 2026). See section 13 for the version history.
 
 
 ================================================================================
@@ -150,8 +150,8 @@ under Windows Python/IDLE rather than inside WSL.
 
   verify_rotation.py               needed if you rotated the assembly
         Confirms the rotated assembly is an exact cyclic shift of the
-        original assembler output. Run by the driver (Phase 0) when
-        ORIGINAL_ASSEMBLY is set, or by hand (section 5).
+        original assembler output. Run by the driver (Phase 0) for a
+        rotated assembly, or by hand (section 5).
 
   diagnose_padding_artifact.sh     optional (in WSL)
         Troubleshooting only: writes a diagnostic report on the padded
@@ -165,11 +165,11 @@ under Windows Python/IDLE rather than inside WSL.
   README.txt                       this file
 
 IMPORTANT: 00_check_terminal_overlap.py and 01_build_padded_reference.py must
-sit in the SAME FOLDER as run_pipeline.sh, as must verify_rotation.py if you
-set ORIGINAL_ASSEMBLY. The driver stops with an explicit error if a required
+sit in the SAME FOLDER as run_pipeline.sh, as must verify_rotation.py if the
+assembly was rotated. The driver stops with an explicit error if a required
 script is missing, rather than silently skipping it.
 
-Every script carries a version number (pipeline version 4.2), which it
+Every script carries a version number (pipeline version 4.2.1), which it
 prints or writes into its output; see section 7, PROVENANCE.
 
 
@@ -206,29 +206,30 @@ assembly.fasta REQUIREMENTS
 
 IF YOU ROTATED THE ASSEMBLY (e.g., TO BEGIN AT cox1)
 ----------------------------------------------------
-Do the checks in this order:
+Keep the unrotated assembler output alongside the rotated file. Two checks
+are needed:
 
-  1. Before rotating, check the assembler output for leftover overlap:
+  1. The assembler output, before rotation, has no leftover overlap.
 
-         python3 scripts/00_check_terminal_overlap.py original_assembly.fasta
-
-  2. Rotate the assembly.
-
-  3. Confirm the rotation is an exact cyclic shift of the original (same
-     length, same composition, no bases duplicated, lost, or altered at the
-     new start position):
-
-         python3 scripts/verify_rotation.py \
-             original_assembly.fasta assembly.fasta
-
-     Alternatively, set ORIGINAL_ASSEMBLY in run_pipeline.sh (section
-     6.1) and the driver runs this check in Phase 0, halts if it fails,
-     and records the result in run_provenance.txt.
+  2. The rotated file is an exact cyclic shift of it (same length, same
+     composition, no bases duplicated, lost, or altered at the new start
+     position).
 
 A cyclic shift of a non-redundant circle is itself non-redundant, so these
-two checks together cover the rotated file. Phase 0 of the driver then
-re-runs the overlap check on the rotated assembly.fasta; it should also
-report no redundancy.
+two checks together cover the rotated file.
+
+Since version 4.2.1 the driver runs both. It requires an answer on whether
+the assembly was rotated (the ROTATED setting, or a question at the start;
+section 6.1) and, if it was, the unrotated file (ORIGINAL_ASSEMBLY). It
+then runs the overlap check on the unrotated file, verifies the rotation,
+re-runs the overlap check on the rotated assembly.fasta, records all three
+results in run_provenance.txt, and halts if any fails.
+
+The same checks by hand:
+
+         python3 scripts/00_check_terminal_overlap.py original_assembly.fasta
+         python3 scripts/verify_rotation.py \
+             original_assembly.fasta assembly.fasta
 
 
 ================================================================================
@@ -260,11 +261,20 @@ block at the top:
   SD_MULTIPLIER      4                K = mean insert + 4 x SD
   MIN_OVERLAP        20               shortest terminal match treated as
                                       real redundancy (bp)
-  ORIGINAL_ASSEMBLY  (empty)          if you rotated the assembly, the
-                                      unrotated assembler output; the
-                                      driver then verifies the rotation
+  ROTATED            (empty)          "yes" or "no": was the assembly
+                                      rotated? Empty = asked at the start
+  ORIGINAL_ASSEMBLY  (empty)          if ROTATED="yes", the unrotated
+                                      assembler output. Empty = asked
 
 MIN_PAD and SD_MULTIPLIER rarely need changing.
+
+ROTATED AND ORIGINAL_ASSEMBLY. The driver will not start without knowing
+whether the assembly was rotated. If ROTATED is empty and the script is run
+from a terminal, it asks (yes/no) and, if yes, asks for the unrotated file.
+If there is no terminal to answer (for example a cluster job or a run under
+nohup), it stops with a message instead of guessing; set both settings for
+such runs. ROTATED="no" with ORIGINAL_ASSEMBLY set is treated as a mistake
+and also stops the run.
 
 FILE SETTINGS. Set ASSEMBLY, R1, R2 (and ORIGINAL_ASSEMBLY, if used) to
 your own files. Each may be a file name in the specimen folder, a path
@@ -281,10 +291,11 @@ anything and names the missing file.
 
 WHAT THE DRIVER DOES
 --------------------
-  Phase 0   If ORIGINAL_ASSEMBLY is set, verifies that assembly.fasta is
-            an exact rotation of it. Then checks the assembly for leftover
-            circularization overlap and invalid characters. Halts if any
-            check fails.
+  Phase 0   If the assembly was rotated: checks the unrotated assembler
+            output for leftover circularization overlap and verifies that
+            assembly.fasta is an exact rotation of it. In every case,
+            checks assembly.fasta for leftover overlap and invalid
+            characters. Halts if any check fails.
 
   Phase 1   Preliminary mapping to the unpadded assembly, purely to measure
             the empirical insert-size distribution.
@@ -370,9 +381,11 @@ FROM PART A, IN coverage_run/
   prelim.stats.txt        Insert-size statistics used to derive K
   run_provenance.txt      Run record: versions, settings, checksums,
                           check results (see PROVENANCE below)
-  rotation_check.log      Rotation check report (only if
-                          ORIGINAL_ASSEMBLY was set)
-  overlap_check.log       Phase 0 report
+  rotation_check.log      Rotation check report (rotated assemblies)
+  overlap_check_original.log
+                          Overlap check on the unrotated assembler output
+                          (rotated assemblies)
+  overlap_check.log       Overlap check on assembly.fasta
   filtered.bam            Filtered alignments, retained for diagnostics
   prelim_filtered_depth.txt
                           Unpadded control depth (N rows) - used by Part B
@@ -677,6 +690,13 @@ the mean, consider also reporting the median depth (from
 ================================================================================
 13. VERSION HISTORY
 ================================================================================
+
+  Version 4.2.1 (November 2026)
+    - run_pipeline.sh requires an answer on whether the assembly was
+      rotated (new ROTATED setting, or a question at the start). For a
+      rotated assembly it runs the overlap check on the unrotated
+      assembler output and verifies the rotation, replacing the manual
+      pre-rotation check. Computed values are unchanged from 4.2.
 
   Version 4.2 (November 2026)
     - End-window check: Phase 7 of run_pipeline.sh maps the reads to a copy

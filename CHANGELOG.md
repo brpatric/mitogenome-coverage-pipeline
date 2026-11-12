@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.2.1 (November 2026)
+
+- `run_pipeline.sh` now requires an answer on whether the assembly was rotated: new setting `ROTATED` ("yes"/"no"). If it is empty, the driver asks at the start (and, if rotated, asks for the unrotated file); a run with no terminal stops with a message instead of guessing.
+- For a rotated assembly, Phase 0 runs the overlap check on the unrotated assembler output (`overlap_check_original.log`), verifies the rotation (`rotation_check.log`) and checks the rotated file, stopping if any check fails. This replaces the manual pre-rotation overlap check.
+- `run_provenance.txt` records `ROTATED` and all three results; the script checksums now include `02_fold_and_plot.py`.
+- Computed values are unchanged from 4.2.
+
 ## 4.2 (November 2026)
 
 - New end-window check. `run_pipeline.sh` Phase 7 maps the reads, unpadded, to a copy of the assembly starting halfway round the circle and writes `origin_check_depth.txt`; the shift is recorded in `padding_metadata.txt` (`origin_check_shift_S`).

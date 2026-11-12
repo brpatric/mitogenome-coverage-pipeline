@@ -30,7 +30,7 @@ Exit code 0 = verified clean rotation, 1 = problem found.
 import sys
 from collections import Counter
 
-__version__ = "4.2"   # coverage pipeline version
+__version__ = "4.2.1"   # coverage pipeline version
 
 
 def read_single_fasta(path):

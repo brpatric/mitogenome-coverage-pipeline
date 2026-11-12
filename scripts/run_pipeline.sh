@@ -7,14 +7,17 @@
 # (Ubuntu). See README.txt for the full step-by-step explanation of what
 # each phase does and why.
 #
-# Pipeline version 4.2. Phase 7 maps the reads to a copy of the assembly
-# cut at the opposite side of the circle (origin_check_depth.txt), used by
-# 02_fold_and_plot.py to check the ends of the sequence. Reads may be .fastq or .fastq.gz and are used in
-# place (not copied); file settings accept names, relative paths or
-# absolute paths. Writes run_provenance.txt (date, pipeline and tool
-# versions, settings, input checksums and check results) to the output
-# folder. Phase 6 builds the unpadded control depth file
-# (prelim_filtered_depth.txt) used for validation.
+# Pipeline version 4.2.1. Phase 0 asks whether the assembly was rotated
+# (or reads ROTATED below); if so, it runs the overlap check on the
+# unrotated assembler output and verifies the rotation, and stops if either
+# fails. Phase 6 builds the unpadded control depth file
+# (prelim_filtered_depth.txt) and Phase 7 maps the reads to a copy of the
+# assembly starting halfway round the circle (origin_check_depth.txt), used
+# by 02_fold_and_plot.py for the interior and end-window checks. Reads may
+# be .fastq or .fastq.gz and are used in place (not copied); file settings
+# accept names, relative paths or absolute paths. Writes run_provenance.txt
+# (date, pipeline and tool versions, settings, input checksums and check
+# results) to the output folder.
 #
 # Requires: bowtie2, samtools, python3 (all inside WSL)
 # =============================================================================
@@ -33,14 +36,60 @@ MIN_OVERLAP=20                 # shortest terminal match treated as real
                                # redundancy (bp). Shorter matches occur by
                                # chance and are reported as a note only.
 SD_MULTIPLIER=4                # K = mean_insert + SD_MULTIPLIER * sd_insert
-ORIGINAL_ASSEMBLY=""           # OPTIONAL: if you rotated the assembly, the
-                               # unrotated assembler output (e.g.
-                               # "original_assembly.fasta"). When set, the
-                               # driver verifies the rotation (Phase 0) and
-                               # records the result. Leave empty otherwise.
+ROTATED=""                     # "yes" if you rotated the assembly (for
+                               # example to begin at cox1), "no" if it is the
+                               # assembler output as is. Leave empty to be
+                               # asked when the script starts; a run with no
+                               # one to answer (e.g. a cluster job) stops
+                               # instead of guessing.
+ORIGINAL_ASSEMBLY=""           # if ROTATED="yes": the unrotated assembler
+                               # output (e.g. "original_assembly.fasta").
+                               # Leave empty to be asked.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # -----------------------------------------------------------------------------
-PIPELINE_VERSION="4.2"
+PIPELINE_VERSION="4.2.1"
+
+# ------------------- rotated or not? (answer required) ----------------------
+norm_yesno() { case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+                   y|yes) echo yes ;; n|no) echo no ;; *) echo "" ;; esac; }
+ROTATED_IN="$ROTATED"
+ROTATED="$(norm_yesno "$ROTATED")"
+if [ -n "$ROTATED_IN" ] && [ -z "$ROTATED" ]; then
+    echo "!! ERROR: ROTATED is set to \"$ROTATED_IN\"; use \"yes\" or \"no\". Nothing was run."
+    exit 1
+fi
+if [ -z "$ROTATED" ]; then
+    if [ -t 0 ]; then
+        while [ -z "$ROTATED" ]; do
+            read -r -p "Was $ASSEMBLY rotated after assembly (e.g. to begin at cox1)? [yes/no]: " ans
+            ROTATED="$(norm_yesno "$ans")"
+            [ -z "$ROTATED" ] && echo "Please answer yes or no."
+        done
+    else
+        echo "!! ERROR: ROTATED is not set and there is no terminal to ask."
+        echo "!! Set ROTATED=\"yes\" or ROTATED=\"no\" at the top of run_pipeline.sh"
+        echo "!! (and ORIGINAL_ASSEMBLY if yes). Nothing was run."
+        exit 1
+    fi
+fi
+if [ "$ROTATED" = "yes" ] && [ -z "$ORIGINAL_ASSEMBLY" ]; then
+    if [ -t 0 ]; then
+        while [ -z "$ORIGINAL_ASSEMBLY" ]; do
+            read -r -p "Unrotated assembler output (file name or path): " ORIGINAL_ASSEMBLY
+        done
+    else
+        echo "!! ERROR: ROTATED=\"yes\" but ORIGINAL_ASSEMBLY is not set, and there is"
+        echo "!! no terminal to ask. Set ORIGINAL_ASSEMBLY at the top of"
+        echo "!! run_pipeline.sh. Nothing was run."
+        exit 1
+    fi
+fi
+if [ "$ROTATED" = "no" ] && [ -n "$ORIGINAL_ASSEMBLY" ]; then
+    echo "!! ERROR: ROTATED=\"no\" but ORIGINAL_ASSEMBLY is set. If the assembly was"
+    echo "!! rotated, set ROTATED=\"yes\"; otherwise clear ORIGINAL_ASSEMBLY."
+    echo "!! Nothing was run."
+    exit 1
+fi
 
 # Resolve input paths against the specimen folder (where this is run from),
 # before moving into the output folder. Absolute paths are kept as given.
@@ -81,6 +130,7 @@ echo "python3            : $(python3 --version 2>&1 | sed 's/^Python //')"
 echo ""
 echo "[Settings]"
 echo "ASSEMBLY           : $ASSEMBLY_PATH"
+echo "ROTATED            : $ROTATED"
 echo "ORIGINAL_ASSEMBLY  : ${ORIGINAL_PATH:-(not set)}"
 echo "R1                 : $R1_PATH"
 echo "R2                 : $R2_PATH"
@@ -97,7 +147,7 @@ for f in "$ASSEMBLY_PATH" "$R1_PATH" "$R2_PATH" ${ORIGINAL_PATH:+"$ORIGINAL_PATH
 done
 echo ""
 echo "[Scripts]"
-for f in 00_check_terminal_overlap.py 01_build_padded_reference.py verify_rotation.py; do
+for f in 00_check_terminal_overlap.py 01_build_padded_reference.py verify_rotation.py 02_fold_and_plot.py; do
     if [ -f "$SCRIPT_DIR/$f" ]; then
         printf "%-30s md5 %s\n" "$f" "$(md5sum "$SCRIPT_DIR/$f" | cut -d' ' -f1)"
     fi
@@ -108,26 +158,50 @@ echo "[Results of checks and derived values]"
 } > "$PROV"
 
 echo "============================================================"
-echo "PHASE 0: Check for leftover terminal redundancy"
+echo "PHASE 0: Checks on the assembly"
 echo "============================================================"
 OVERLAP_SCRIPT="$SCRIPT_DIR/00_check_terminal_overlap.py"
-if [ ! -f "$OVERLAP_SCRIPT" ]; then
-    echo "!! ERROR: required script not found:"
-    echo "!!   $OVERLAP_SCRIPT"
-    echo "!! 00_check_terminal_overlap.py must sit in the same folder as"
-    echo "!! run_pipeline.sh. Stopping here rather than silently skipping"
-    echo "!! the terminal-redundancy check."
-    exit 1
-fi
-
-if [ -n "$ORIGINAL_ASSEMBLY" ]; then
-    ROT_SCRIPT="$SCRIPT_DIR/verify_rotation.py"
-    if [ ! -f "$ROT_SCRIPT" ]; then
-        echo "!! ERROR: ORIGINAL_ASSEMBLY is set but verify_rotation.py was not"
-        echo "!! found in $SCRIPT_DIR. Stopping."
+ROT_SCRIPT="$SCRIPT_DIR/verify_rotation.py"
+for f in "$OVERLAP_SCRIPT" ${ORIGINAL_PATH:+"$ROT_SCRIPT"}; do
+    if [ ! -f "$f" ]; then
+        echo "!! ERROR: required script not found:"
+        echo "!!   $f"
+        echo "!! It must sit in the same folder as run_pipeline.sh. Stopping here"
+        echo "!! rather than silently skipping a check."
         exit 1
     fi
+done
+
+# overlap_check <fasta> <log> <label>: runs 00_check_terminal_overlap.py,
+# records the result, and stops on redundancy or on a crash.
+overlap_check() {
+    set +e
+    python3 "$OVERLAP_SCRIPT" "$1" --min-overlap "$MIN_OVERLAP" 2>&1 | tee "$2"
+    local rc=${PIPESTATUS[0]}
+    set -e
+    # Exit 0 = no redundancy, 1 = redundancy found; anything else = crash.
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+        echo ""
+        echo "!! ERROR: the overlap check on $1 did not run correctly (exit code $rc)."
+        echo "!! See $2. Stopping rather than continuing with an unverified assembly."
+        exit 1
+    fi
+    printf "%-21s: %s (%s)\n" "$3" "$(grep '^RESULT:' "$2" | sed 's/^RESULT: //')" "$2" >> "$PROV"
+    if grep -q "RESULT: Exact terminal redundancy" "$2"; then
+        echo ""
+        echo "!! Terminal redundancy detected in $1 -- see $2."
+        echo "!! Trim the reported overlap (from the assembler output, then redo"
+        echo "!! any rotation) and re-run this pipeline. Stopping here."
+        exit 1
+    fi
+}
+
+if [ "$ROTATED" = "yes" ]; then
     cp "$ORIGINAL_PATH" ./original_assembly.fasta
+    echo "--- Overlap check on the unrotated assembler output ---"
+    overlap_check original_assembly.fasta overlap_check_original.log "Overlap (unrotated)"
+    echo ""
+    echo "--- Rotation check ---"
     set +e
     python3 "$ROT_SCRIPT" original_assembly.fasta assembly.fasta 2>&1 | tee rotation_check.log
     ROT_RC=${PIPESTATUS[0]}
@@ -140,33 +214,12 @@ if [ -n "$ORIGINAL_ASSEMBLY" ]; then
         exit 1
     fi
     echo "Rotation check       : PASSED (rotation_check.log)" >> "$PROV"
+    echo ""
+    echo "--- Overlap check on the rotated assembly ---"
+    overlap_check assembly.fasta overlap_check.log "Overlap check"
 else
-    echo "Rotation check       : not run by the driver (ORIGINAL_ASSEMBLY not set)" >> "$PROV"
-fi
-
-set +e
-python3 "$OVERLAP_SCRIPT" assembly.fasta --min-overlap "$MIN_OVERLAP" 2>&1 | tee overlap_check.log
-OVERLAP_RC=${PIPESTATUS[0]}
-set -e
-
-# The script exits 0 (no redundancy) or 1 (redundancy found). Anything
-# else means it crashed -- do not treat that as "all clear".
-if [ "$OVERLAP_RC" -ne 0 ] && [ "$OVERLAP_RC" -ne 1 ]; then
-    echo ""
-    echo "!! ERROR: the overlap check did not run correctly (exit code $OVERLAP_RC)."
-    echo "!! See overlap_check.log above. Stopping rather than continuing"
-    echo "!! with an unverified assembly."
-    exit 1
-fi
-
-echo "Overlap check        : $(grep '^RESULT:' overlap_check.log | sed 's/^RESULT: //') (overlap_check.log)" >> "$PROV"
-
-if grep -q "RESULT: Exact terminal redundancy" overlap_check.log; then
-    echo ""
-    echo "!! Terminal redundancy detected -- see overlap_check.log for details."
-    echo "!! Trim the reported overlap from assembly.fasta and re-run this"
-    echo "!! pipeline before trusting the results. Stopping here."
-    exit 1
+    echo "Rotation check       : not needed (assembly not rotated)" >> "$PROV"
+    overlap_check assembly.fasta overlap_check.log "Overlap check"
 fi
 
 echo ""
@@ -302,7 +355,8 @@ echo "  - padded_depth.txt            (raw per-base depth, length N+K)"
 echo "  - padding_metadata.txt        (N, K -- needed by the fold/plot step)"
 echo "  - prelim_filtered_depth.txt   (unpadded control depth, length N)"
 echo "  - origin_check_depth.txt      (origin-check depth, length N)"
-echo "  - overlap_check.log           (Phase 0 report)"
+echo "  - overlap_check.log           (Phase 0 report; also"
+echo "    overlap_check_original.log and rotation_check.log if rotated)"
 echo "  - run_provenance.txt          (versions, settings, checksums, results)"
 echo "  - prelim.stats.txt            (insert size stats used to pick K)"
 echo ""
