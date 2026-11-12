@@ -24,7 +24,7 @@ Two checks follow, each run when its input file is present:
 
   2. End-window check (origin_check_depth.txt, pipeline version 4.2+).
      The interior check cannot see the ends, which is exactly where the
-     padding acts. Phase 7 of run_pipeline.sh therefore maps the reads to a
+     padding acts. Phase 8 of run_pipeline.sh therefore maps the reads to a
      copy of the assembly cut at the opposite side of the circle, where the
      original start/end region lies deep in the interior. This script
      compares that profile with the folded profile across the end windows
@@ -90,7 +90,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-__version__ = "4.2.2"   # coverage pipeline version
+__version__ = "4.3"   # coverage pipeline version
 
 # ============================= EDIT THESE ===================================
 PLOT_TITLE = "Per-base Read Coverage"     # set to the full title you want shown, e.g. "Per-base Read Coverage: Genus species"

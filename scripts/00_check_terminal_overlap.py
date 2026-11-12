@@ -25,10 +25,25 @@ which a chance match is about one in a trillion for random sequence.
 Matches shorter than the minimum are reported as an informational note and
 do NOT count as redundancy.
 
+Second mode: rotation check
+---------------------------
+    python3 00_check_terminal_overlap.py --verify-rotation original.fasta rotated.fasta
+
+Confirms that a manually rotated assembly (e.g. rotated so that cox1 comes
+first) is an EXACT rotation of the assembler output -- no bases duplicated,
+lost, or altered at the seam. A genuine rotation must have identical
+length, identical base composition, and appear within (original +
+original); the last condition holds if and only if the rotated sequence is
+a cyclic shift of the original, so even one changed base at the seam fails
+it. Exit code 0 = clean rotation, 1 = problem found. run_pipeline.sh runs
+this in Phase 0 for a rotated assembly. (This replaces the separate
+verify_rotation.py of earlier versions.)
+
 Usage
 -----
     python3 00_check_terminal_overlap.py assembly.fasta [--window 2000]
                                                         [--min-overlap 20]
+    python3 00_check_terminal_overlap.py --verify-rotation original.fasta rotated.fasta
 
 Exit codes
 ----------
@@ -38,8 +53,9 @@ Exit codes
 
 import argparse
 import sys
+from collections import Counter
 
-__version__ = "4.2.2"   # coverage pipeline version
+__version__ = "4.3"   # coverage pipeline version
 
 # Valid IUPAC nucleotide codes (upper-case; sequence is upper-cased on read).
 VALID_BASES = set("ACGTUNRYSWKMBDHV")
@@ -89,8 +105,68 @@ def longest_suffix_prefix_overlap(seq, window, min_overlap=1):
     return 0
 
 
+def verify_rotation(orig_path, rot_path):
+    """Rotation check. Returns 0 for a clean rotation, 1 otherwise."""
+    orig_hdr, orig = read_single_fasta(orig_path)
+    rot_hdr, rot = read_single_fasta(rot_path)
+
+    print(f"00_check_terminal_overlap.py --verify-rotation (pipeline version {__version__})")
+    print(f"original : {orig_hdr}")
+    print(f"           {orig_path}  ({len(orig)} bp)")
+    print(f"rotated  : {rot_hdr}")
+    print(f"           {rot_path}  ({len(rot)} bp)")
+    print("")
+
+    ok = True
+    if len(orig) == len(rot):
+        print(f"[PASS] length identical ({len(orig)} bp)")
+    else:
+        diff = len(rot) - len(orig)
+        print(f"[FAIL] length differs by {diff:+d} bp "
+              f"(original {len(orig)}, rotated {len(rot)})")
+        print(f"       {'Extra bases' if diff > 0 else 'Missing bases'} "
+              f"at the seam is the usual cause of a {abs(diff)} bp difference.")
+        ok = False
+
+    co, cr = Counter(orig), Counter(rot)
+    if co == cr:
+        print("[PASS] base composition identical")
+    else:
+        print("[FAIL] base composition differs:")
+        for base in sorted(set(co) | set(cr)):
+            if co.get(base, 0) != cr.get(base, 0):
+                print(f"       {base}: original={co.get(base, 0)}  rotated={cr.get(base, 0)}")
+        ok = False
+
+    if len(orig) == len(rot) and rot in (orig + orig):
+        offset = (orig + orig).index(rot)
+        print("[PASS] rotated sequence is an exact cyclic shift of the original")
+        print(f"       rotation offset: {offset} bp "
+              f"(rotated position 1 == original position {offset + 1})")
+    else:
+        print("[FAIL] rotated sequence is NOT an exact cyclic shift of the original")
+        print("       The sequence content changed at the seam -- this is not a")
+        print("       pure rotation. Re-do the rotation from the assembler output.")
+        ok = False
+
+    print("")
+    if ok:
+        print("VERDICT: clean rotation. Safe to use for coverage mapping.")
+    else:
+        print("VERDICT: PROBLEM FOUND. Do not use this file for coverage mapping")
+        print("         until the rotation is redone.")
+    return 0 if ok else 1
+
+
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
+    if len(sys.argv) >= 2 and sys.argv[1] == "--verify-rotation":
+        if len(sys.argv) != 4:
+            print("Usage: python3 00_check_terminal_overlap.py --verify-rotation "
+                  "original.fasta rotated.fasta", file=sys.stderr)
+            return 2
+        return verify_rotation(sys.argv[2], sys.argv[3])
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("fasta", help="Path to the circularized assembly FASTA")
     ap.add_argument("--window", type=int, default=2000,
                      help="Max bp to check at each end (default: 2000)")

@@ -6,7 +6,7 @@ Per-base coverage calculation and visualization for circularized mitochondrial
 genomes assembled from paired-end Illumina data, with correction for the
 coverage artifact introduced at the circular origin.
 
-Version 4.2.2 (November 2026). See section 13 for the version history.
+Version 4.3 (November 2026). See section 13 for the version history.
 
 
 ================================================================================
@@ -135,29 +135,23 @@ under Windows Python/IDLE rather than inside WSL.
 
   run_pipeline.sh                  >>> RUN THIS (in WSL)
         Driver script. Runs Phases 0-8: checks, mapping, filtering, depth,
-        the unpadded control depth, the origin-check depth and the
-        padding diagnostic report.
+        the padding diagnostic report, the unpadded control depth and the
+        origin-check depth.
 
   00_check_terminal_overlap.py     called automatically by run_pipeline.sh
         Verifies the assembly has no duplicated overlap at the circular
-        join. Also validates sequence characters.
+        join and validates sequence characters. With --verify-rotation,
+        confirms a rotated assembly is an exact cyclic shift of the
+        original assembler output (Phase 0, rotated assemblies).
 
   01_build_padded_reference.py     called automatically by run_pipeline.sh
-        Builds the padded reference and writes padding_metadata.txt.
+        Builds the padded reference and writes padding_metadata.txt. With
+        --diagnose, writes the padding diagnostic report (Phase 6; MAPQ,
+        soft-clipping, double-count test).
 
   02_fold_and_plot.py              >>> RUN THIS (in IDLE or WSL)
         Folds depth to true coordinates, runs the end-window and interior
         checks, computes statistics and makes figures.
-
-  verify_rotation.py               needed if you rotated the assembly
-        Confirms the rotated assembly is an exact cyclic shift of the
-        original assembler output. Run by the driver (Phase 0) for a
-        rotated assembly, or by hand (section 5).
-
-  diagnose_padding_artifact.sh     called automatically by run_pipeline.sh
-        Writes a diagnostic report on the padded window (MAPQ,
-        soft-clipping, double-count test) in Phase 8. Can also be run by
-        hand on an older coverage_run/ folder (section 9).
 
   03_compare_to_control.py         optional (in IDLE or WSL)
         Standalone version of the control comparison now built into
@@ -167,11 +161,11 @@ under Windows Python/IDLE rather than inside WSL.
   README.txt                       this file
 
 IMPORTANT: 00_check_terminal_overlap.py and 01_build_padded_reference.py must
-sit in the SAME FOLDER as run_pipeline.sh, as must verify_rotation.py if the
-assembly was rotated. The driver stops with an explicit error if a required
+sit in the SAME FOLDER as run_pipeline.sh. These three files are all the
+driver needs. The driver stops with an explicit error if a required
 script is missing, rather than silently skipping it.
 
-Every script carries a version number (pipeline version 4.2.2), which it
+Every script carries a version number (pipeline version 4.3), which it
 prints or writes into its output; see section 7, PROVENANCE.
 
 
@@ -189,10 +183,10 @@ Place these in one working folder, with the scripts in a scripts/ subfolder:
             run_pipeline.sh
             00_check_terminal_overlap.py
             01_build_padded_reference.py
-            02_fold_and_plot.py
-            03_compare_to_control.py
-            verify_rotation.py
-            diagnose_padding_artifact.sh
+
+02_fold_and_plot.py (and the optional 03_compare_to_control.py) run
+separately, in WSL or Windows Python/IDLE, and can be kept anywhere
+(section 6.2).
 
 assembly.fasta REQUIREMENTS
 ---------------------------
@@ -230,7 +224,7 @@ results in run_provenance.txt, and halts if any fails.
 The same checks by hand:
 
          python3 scripts/00_check_terminal_overlap.py original_assembly.fasta
-         python3 scripts/verify_rotation.py \
+         python3 scripts/00_check_terminal_overlap.py --verify-rotation \
              original_assembly.fasta assembly.fasta
 
 
@@ -311,21 +305,21 @@ WHAT THE DRIVER DOES
 
   Phase 5   Extracts per-base depth across the padded reference.
 
-  Phase 6   Filters the Phase 1 (unpadded) mapping exactly as in Phase 4
+  Phase 6   Writes the padding diagnostic report
+            (01_build_padded_reference.py --diagnose): MAPQ distributions
+            in the padded window, soft-clipping near the junction, and a
+            test for reads counted twice. A problem in this report never
+            stops the run; the result is recorded in run_provenance.txt.
+
+  Phase 7   Filters the Phase 1 (unpadded) mapping exactly as in Phase 4
             and extracts its depth, giving the control used to validate the
             correction (prelim_filtered_depth.txt).
 
-  Phase 7   Maps the reads, unpadded, to a copy of the assembly starting
+  Phase 8   Maps the reads, unpadded, to a copy of the assembly starting
             halfway round the circle, filters exactly as in Phase 4 and
             extracts its depth (origin_check_depth.txt), for the end-window
             check (section 8). The shift is recorded in padding_metadata.txt
             as origin_check_shift_S.
-
-  Phase 8   Writes the padding diagnostic report
-            (diagnose_padding_artifact.sh): MAPQ distributions in the
-            padded window, soft-clipping near the junction, and a test for
-            reads counted twice. A problem in this report never stops the
-            run; the result is recorded in run_provenance.txt.
 
 BOWTIE2 MUST BE RUN IN --local MODE
 -----------------------------------
@@ -395,7 +389,7 @@ FROM PART A, IN coverage_run/
                           (rotated assemblies)
   overlap_check.log       Overlap check on assembly.fasta
   diagnostic_report_<specimen>_<date>.txt
-                          Padding diagnostic report (Phase 8)
+                          Padding diagnostic report (Phase 6)
   filtered.bam            Filtered alignments, retained for diagnostics
   prelim_filtered_depth.txt
                           Unpadded control depth (N rows) - used by Part B
@@ -468,7 +462,7 @@ agree closely.
 
 The comparison is restricted to positions K+1 to N-K, because the unpadded
 control is depressed at both ends by the origin artifact. It runs
-automatically: Phase 6 of the driver builds the control, and
+automatically: Phase 7 of the driver builds the control, and
 02_fold_and_plot.py compares it with the corrected profile when
 prelim_filtered_depth.txt sits next to the script. In
 <prefix>_control_comparison.txt:
@@ -499,7 +493,7 @@ gave a smooth profile. Simulated reads did not reproduce the effect, so it
 arises from features of particular read sets rather than from the folding
 arithmetic, and it cannot be ruled out in advance.
 
-Phase 7 of the driver therefore maps the reads, unpadded, to a copy of the
+Phase 8 of the driver therefore maps the reads, unpadded, to a copy of the
 assembly starting halfway round the circle, where the original start and
 end lie deep in the interior. 02_fold_and_plot.py compares that profile with
 the folded profile across the end windows (positions N-W+1 to N and 1 to W,
@@ -580,11 +574,10 @@ section 6.1). If the filter is clean, check <prefix>_control_comparison.txt,
 then inspect coverage_run/diagnostic_report_<specimen>_<date>.txt (MAPQ in
 the padded window, soft-clipping near the junction, and the double-count
 test, which should report 0 reads in both copies). The driver writes it in
-Phase 8; for a coverage_run/ folder from a run before version 4.2.2, produce
-it by hand:
+Phase 6; for a coverage_run/ folder from an older run, produce it by hand:
 
     cd /mnt/c/path/to/<specimen>/coverage_run
-    bash ../scripts/diagnose_padding_artifact.sh
+    python3 ../scripts/01_build_padded_reference.py --diagnose
 
 02_fold_and_plot.py REPORTS MISSING INPUT FILES
 -----------------------------------------------
@@ -701,6 +694,16 @@ the mean, consider also reporting the median depth (from
 ================================================================================
 13. VERSION HISTORY
 ================================================================================
+
+  Version 4.3 (November 2026)
+    - Three scripts for the driver: the rotation check is now
+      00_check_terminal_overlap.py --verify-rotation, and the padding
+      diagnostic report is 01_build_padded_reference.py --diagnose.
+      verify_rotation.py and diagnose_padding_artifact.sh are removed.
+    - The diagnostic report runs straight after the padded mapping (Phase
+      6); the unpadded control is now Phase 7 and the origin-check mapping
+      Phase 8.
+    - Computed values are unchanged from 4.2.2.
 
   Version 4.2.2 (November 2026)
     - run_pipeline.sh runs diagnose_padding_artifact.sh automatically

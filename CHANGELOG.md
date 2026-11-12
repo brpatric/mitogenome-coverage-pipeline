@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.3 (November 2026)
+
+- The driver needs only three scripts: `run_pipeline.sh`, `00_check_terminal_overlap.py` and `01_build_padded_reference.py`.
+- The rotation check moved into `00_check_terminal_overlap.py --verify-rotation`; `verify_rotation.py` is removed.
+- The padding diagnostic report moved into `01_build_padded_reference.py --diagnose` (rewritten in Python; same results); `diagnose_padding_artifact.sh` is removed.
+- The diagnostic report now runs straight after the padded mapping (Phase 6). The unpadded control is Phase 7 and the origin-check mapping Phase 8.
+- Computed values are unchanged from 4.2.2.
+
 ## 4.2.2 (November 2026)
 
 - `run_pipeline.sh` runs `diagnose_padding_artifact.sh` automatically at the end of every run (Phase 8), writing `diagnostic_report_<specimen>_<date>.txt` to `coverage_run/` and recording the double-count result in `run_provenance.txt`. A problem in this report-only step never stops the run.

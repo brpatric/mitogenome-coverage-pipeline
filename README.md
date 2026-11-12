@@ -2,7 +2,7 @@
 
 Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file.
 
-**Version 4.2.2** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
+**Version 4.3** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
 ## Why a correction is needed
 
@@ -32,7 +32,8 @@ Set up one folder per specimen:
     original_assembly.fasta   if rotated: the unrotated assembler output
     R1.fastq.gz               forward reads (.fastq or .fastq.gz)
     R2.fastq.gz               reverse reads
-    scripts/                  the contents of this repository's scripts/ folder
+    scripts/                  run_pipeline.sh, 00_check_terminal_overlap.py,
+                              01_build_padded_reference.py
 ```
 
 The file names above are the defaults; your files can have any names. Open `scripts/run_pipeline.sh` and edit the settings block at the top to match them:
@@ -55,7 +56,7 @@ ORIGINAL_ASSEMBLY=""           # if rotated: the unrotated assembler output
    ```
    bash scripts/run_pipeline.sh
    ```
-2. Copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to `02_fold_and_plot.py`.
+2. Put `02_fold_and_plot.py` in any folder (WSL or Windows), and copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to it.
 3. Set `PLOT_TITLE` near the top of `02_fold_and_plot.py`, then run it and enter an output prefix (for example `Genus_species_specimenID`) when asked:
    ```
    python3 02_fold_and_plot.py
@@ -69,10 +70,10 @@ These are not needed for a routine run; step 3 already runs both checks.
   ```
   python3 03_compare_to_control.py
   ```
-- **Padding diagnostic report.** Since version 4.2.2 the driver writes this automatically (Phase 8) as `coverage_run/diagnostic_report_<specimen>_<date>.txt`: MAPQ distributions in the padded window, soft-clipping near the junction and a test for reads counted twice (expected 0; also recorded in `run_provenance.txt`). To produce it for a `coverage_run/` folder from an older run, run the script from inside that folder:
+- **Padding diagnostic report.** The driver writes this automatically (Phase 6) as `coverage_run/diagnostic_report_<specimen>_<date>.txt`: MAPQ distributions in the padded window, soft-clipping near the junction and a test for reads counted twice (expected 0; also recorded in `run_provenance.txt`). To produce it for a `coverage_run/` folder from an older run:
   ```
   cd coverage_run
-  bash ../scripts/diagnose_padding_artifact.sh
+  python3 ../scripts/01_build_padded_reference.py --diagnose
   ```
 
 ## Outputs
@@ -96,7 +97,7 @@ Padding changes only how reads near the origin are placed, so alignments in the 
 
 The interior comparison cannot see the first and last *K* bp, which is exactly where padding and folding act. In two *Hogna carolinensis* specimens assembled with NOVOPlasty and rotated to begin at *cox1*, the folded profile showed excess depth over the first few hundred bases (up to 50% above the true value at position 1), although the interior comparison passed. Mapping the same reads to the unrotated assembly, where that region lies mid-sequence, gave a smooth profile. Simulated reads did not reproduce the effect, so it arises from features of particular read sets rather than from the folding arithmetic, and it cannot be ruled out in advance for any specimen.
 
-Since version 4.2, Phase 7 of `run_pipeline.sh` therefore maps the reads, unpadded, to a copy of the assembly starting halfway round the circle, so the original start and end lie deep in its interior. `02_fold_and_plot.py` compares that profile with the folded profile across the end windows in 200-bp bins. A bin fails if it differs by 10% or more **and** by 3× or more. If no bin fails, the folded profile is reported as before. If any bin fails, the end windows of the reported profile are taken from the origin-check mapping, the statistics file says so, and the folded profile is kept as `<prefix>_folded_depth_before_end_window_correction.txt`. Either way, the reported profile stays in the assembly's own coordinates (for example *cox1* first).
+Since version 4.2, `run_pipeline.sh` (now Phase 8) therefore maps the reads, unpadded, to a copy of the assembly starting halfway round the circle, so the original start and end lie deep in its interior. `02_fold_and_plot.py` compares that profile with the folded profile across the end windows in 200-bp bins. A bin fails if it differs by 10% or more **and** by 3× or more. If no bin fails, the folded profile is reported as before. If any bin fails, the end windows of the reported profile are taken from the origin-check mapping, the statistics file says so, and the folded profile is kept as `<prefix>_folded_depth_before_end_window_correction.txt`. Either way, the reported profile stays in the assembly's own coordinates (for example *cox1* first).
 
 ## Provenance
 
@@ -112,18 +113,16 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 
 | Path | Purpose |
 | --- | --- |
-| `scripts/run_pipeline.sh` | Driver: checks, mapping, padding, filtering, depth, control and origin-check depth, provenance record |
-| `scripts/00_check_terminal_overlap.py` | Checks for leftover circularization overlap and invalid characters |
-| `scripts/verify_rotation.py` | Confirms a rotated assembly is an exact cyclic shift of the original |
-| `scripts/01_build_padded_reference.py` | Builds the padded reference and its metadata |
+| `scripts/run_pipeline.sh` | Driver: checks, mapping, padding, filtering, depth, diagnostic report, control and origin-check depth, provenance record |
+| `scripts/00_check_terminal_overlap.py` | Checks for leftover circularization overlap and invalid characters; with `--verify-rotation`, confirms a rotated assembly is an exact cyclic shift of the original |
+| `scripts/01_build_padded_reference.py` | Builds the padded reference and its metadata; with `--diagnose`, writes the padding diagnostic report |
 | `scripts/02_fold_and_plot.py` | Folds depth, runs the end-window and interior checks, computes statistics, draws figures |
 | `scripts/03_compare_to_control.py` | Optional standalone control comparison, for profiles folded with earlier versions |
-| `scripts/diagnose_padding_artifact.sh` | Padding diagnostic report for the padded window; run by the driver (Phase 8) |
 | `docs/Coverage_pipeline_quick_start.docx` | Short quick start guide (three pages) |
-| `docs/Coverage_calculation_and_visualization_protocol_v4.2.2.docx` | Full step-by-step protocol with embedded scripts |
+| `docs/Coverage_calculation_and_visualization_protocol_v4.3.docx` | Full step-by-step protocol with embedded scripts |
 | `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.2.2), Results and figure-legend templates, and references |
+| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.3), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
 | `CITATION.cff` | Citation information (powers GitHub's “Cite this repository” button) |
 
@@ -135,7 +134,7 @@ The pipeline expects a single circular contig and paired-end reads. The overlap 
 
 If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.2.2. https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.3. https://github.com/brpatric/mitogenome-coverage-pipeline
 
 BibTeX:
 
@@ -143,7 +142,7 @@ BibTeX:
 @software{patrick_2026_mitogenome_coverage,
   author  = {Patrick, L. Brian},
   title   = {Mitogenome Coverage Pipeline},
-  version = {4.2.2},
+  version = {4.3},
   year    = {2026},
   url     = {https://github.com/brpatric/mitogenome-coverage-pipeline}
 }

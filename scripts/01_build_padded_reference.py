@@ -17,15 +17,32 @@ provenance, the metadata file also records the pipeline version and the MD5
 checksum of the assembly FASTA, which 02_fold_and_plot.py copies into the
 reported statistics.
 
+Second mode: padding diagnostic report
+--------------------------------------
+After the padded mapping, run_pipeline.sh calls this script again with
+--diagnose (Phase 6). Run inside a coverage_run/ folder, it reads
+padding_metadata.txt, padded_depth.txt and filtered.bam and writes
+diagnostic_report_<specimen>_<date>.txt: the padded geometry, alignment
+record counts, a test for reads counted twice (expected 0), MAPQ
+distributions in both copies of the duplicated window and the interior,
+and soft-clipping near the junction. It needs samtools on the PATH. This
+replaces the separate diagnose_padding_artifact.sh of earlier versions.
+
 Usage
 -----
     python3 01_build_padded_reference.py assembly.fasta K padded_assembly.fasta metadata_out.txt
+    python3 01_build_padded_reference.py --diagnose [coverage_run_folder]
 """
 
 import hashlib
+import os
+import shutil
+import subprocess
 import sys
+from collections import Counter
+from datetime import datetime
 
-__version__ = "4.2.2"   # coverage pipeline version
+__version__ = "4.3"   # coverage pipeline version
 
 # Valid IUPAC nucleotide codes (upper-case; sequence is upper-cased on read).
 VALID_BASES = set("ACGTUNRYSWKMBDHV")
@@ -118,10 +135,126 @@ def write_fasta(path, header, seq, width=70):
             fh.write(seq[i:i + width] + "\n")
 
 
+# ============================ DIAGNOSTIC REPORT ==============================
+
+def _samtools(*args):
+    return subprocess.run(["samtools", *args], check=True, capture_output=True,
+                          text=True, errors="replace").stdout
+
+
+def diagnose(folder="."):
+    """Write the padding diagnostic report for a coverage_run/ folder.
+    Returns 0 on success, 1 if inputs or samtools are missing."""
+    folder = os.path.abspath(folder)
+    missing = [f for f in ("padding_metadata.txt", "padded_depth.txt", "filtered.bam")
+               if not os.path.isfile(os.path.join(folder, f))]
+    if missing:
+        print(f"MISSING in {folder}: {', '.join(missing)}")
+        print("Run this inside a specimen's coverage_run/ folder. Nothing was written.")
+        return 1
+    if shutil.which("samtools") is None:
+        print("ERROR: samtools not found on PATH. Run this inside WSL, not Windows.")
+        return 1
+
+    meta = {}
+    with open(os.path.join(folder, "padding_metadata.txt")) as fh:
+        meta_text = fh.read()
+    for line in meta_text.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 2:
+            meta[parts[0]] = parts[1]
+    k = int(meta["padding_length_K"])
+    with open(os.path.join(folder, "padded_depth.txt")) as fh:
+        total = sum(1 for _ in fh)
+    n = total - k
+    bam = os.path.join(folder, "filtered.bam")
+
+    # One pass over the alignments collects everything below.
+    window_copy = {}                 # read (QNAME + mate) -> set of copies
+    mapq_a, mapq_b, mapq_int = Counter(), Counter(), Counter()
+    n_int = 0
+    cigars = Counter()
+    proc = subprocess.Popen(["samtools", "view", bam], stdout=subprocess.PIPE,
+                            text=True, errors="replace")
+    for line in proc.stdout:
+        f = line.split("\t", 6)
+        flag, pos, mapq, cigar = int(f[1]), int(f[3]), f[4], f[5]
+        mate = "/1" if flag & 64 else ("/2" if flag & 128 else "/0")
+        if pos <= k:
+            window_copy.setdefault(f[0] + mate, set()).add("A")
+            mapq_a[int(mapq)] += 1
+        elif pos > n:
+            window_copy.setdefault(f[0] + mate, set()).add("B")
+            mapq_b[int(mapq)] += 1
+        elif n_int < 200000:
+            mapq_int[int(mapq)] += 1
+            n_int += 1
+        if pos > n - 200:
+            cigars[cigar] += 1
+    proc.wait()
+    dup_reads = sum(1 for v in window_copy.values() if len(v) == 2)
+
+    specimen = os.path.basename(os.path.dirname(folder))
+    report = os.path.join(folder, f"diagnostic_report_{specimen}_{datetime.now():%Y%m%d}.txt")
+    sq = [l for l in _samtools("view", "-H", bam).splitlines() if l.startswith("@SQ")]
+
+    def table(counter):
+        return [f"    {c:>8}  {q}" for q, c in sorted(counter.items())] or ["    (none)"]
+
+    out = [
+        "=" * 60,
+        f"PADDING DIAGNOSTIC (pipeline version {__version__})",
+        f"Specimen folder : {specimen}",
+        f"Path            : {folder}",
+        f"Date            : {datetime.now():%Y-%m-%d %H:%M:%S}",
+        f"samtools        : {_samtools('--version').splitlines()[0]}",
+        "=" * 60, "",
+        "--- geometry ---",
+        f"padded_depth.txt rows (N+K) : {total}",
+        f"K (padding length)          : {k}",
+        f"N (true genome length)      : {n}",
+        "", "padding_metadata.txt contents:",
+        *["    " + l for l in meta_text.splitlines()],
+        "", f"--- BAM header reference length (should equal N+K = {total}) ---",
+        *["    " + l for l in sq],
+        "", "--- alignment record counts in filtered.bam ---",
+        f"total records          : {_samtools('view', '-c', bam).strip()}",
+        f"secondary (flag 256)   : {_samtools('view', '-c', '-f', '256', bam).strip()}",
+        f"supplementary (2048)   : {_samtools('view', '-c', '-f', '2048', bam).strip()}",
+        f"duplicates (1024)      : {_samtools('view', '-c', '-f', '1024', bam).strip()}",
+        "", "--- DOUBLE-COUNT TEST ---",
+        "Individual READS (QNAME + mate number) with alignments in BOTH copies",
+        f"of the duplicated window (copy 1 = pos 1..{k}, copy 2 = pos > {n}).",
+        "Mate number is included because both mates of a pair share a QNAME.",
+        "If secondary/supplementary counts above are 0, this MUST be 0: with one",
+        "alignment record per read, a read cannot contribute depth twice.",
+        f"reads present in BOTH copies : {dup_reads}",
+        "", f"--- MAPQ distribution: window copy 1 (pos 1..{k}) ---", "       count  MAPQ",
+        *table(mapq_a),
+        "", f"--- MAPQ distribution: window copy 2 (pos > {n}) ---", "       count  MAPQ",
+        *table(mapq_b),
+        "", f"--- MAPQ distribution: interior (pos {k + 1}..{n}, first 200k records) ---",
+        "       count  MAPQ",
+        *table(mapq_int),
+        "", f"--- CIGAR soft-clipping near the junction (pos > {n - 200}) ---",
+        "       count  CIGAR (top 15)",
+        *[f"    {c:>8}  {cg}" for cg, c in cigars.most_common(15)],
+        "", "=" * 60, "END OF DIAGNOSTIC", "=" * 60,
+    ]
+    with open(report, "w") as fh:
+        fh.write("\n".join(out) + "\n")
+    print("\n".join(out))
+    print(f"\nDiagnostic report written to {report}")
+    return 0
+
+
 def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == "--diagnose":
+        sys.exit(diagnose(sys.argv[2] if len(sys.argv) > 2 else "."))
     if len(sys.argv) != 5:
         print("Usage: python3 01_build_padded_reference.py "
-              "assembly.fasta K padded_assembly.fasta metadata_out.txt",
+              "assembly.fasta K padded_assembly.fasta metadata_out.txt\n"
+              "       python3 01_build_padded_reference.py --diagnose [coverage_run_folder]",
               file=sys.stderr)
         sys.exit(1)
 
