@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.4 (November 2026)
+
+- `run_pipeline.sh` runs `02_fold_and_plot.py` as Phase 9 if it sits next to the driver, writing the statistics, figures and check results to `coverage_results/` in the specimen folder. New settings `RESULTS_DIR`, `PREFIX` (default: the specimen folder's name) and `PLOT_TITLE`. Both check results are added to `run_provenance.txt`. If `02` fails (for example, a missing Python package), the mapping outputs are kept and the driver says so.
+- `02_fold_and_plot.py` accepts `--input-dir`, `--output-dir`, `--prefix` and `--title`; with no arguments it works as before (IDLE).
+- Computed values are unchanged from 4.3.
+
 ## 4.3 (November 2026)
 
 - The driver needs only three scripts: `run_pipeline.sh`, `00_check_terminal_overlap.py` and `01_build_padded_reference.py`.

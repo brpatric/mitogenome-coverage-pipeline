@@ -40,11 +40,17 @@ everything else runs as normal.
 
 How to run
 ----------
-This version is written to be run directly from the Windows Python IDLE
-shell (Run > Run Module, or F5) -- no command-line arguments needed.
+Two ways:
 
-Before running, put these files in the SAME FOLDER as this script (all
-from the coverage_run/ folder written by run_pipeline.sh):
+  1. Automatically, by run_pipeline.sh (Phase 9, version 4.4+). If this
+     script sits in the same folder as run_pipeline.sh, the driver runs it
+     at the end of every run, reading the files in coverage_run/ and
+     writing the outputs to coverage_results/ in the folder the driver was
+     run from. The prefix and plot title come from the driver's settings.
+
+  2. By hand, from the Windows Python IDLE shell (Run > Run Module, or F5)
+     or from WSL, with no command-line arguments. Put these files in the
+     SAME FOLDER as this script (all from coverage_run/):
     padded_depth.txt            required
     padding_metadata.txt        required
     prelim_filtered_depth.txt   optional, needed for the interior check
@@ -55,7 +61,7 @@ MySpecies_sample01) -- this is used to name all the output files.
 It only needs pandas, matplotlib, and numpy -- no bioinformatics tools --
 so it also runs fine inside WSL if you'd rather use that instead.
 
-Outputs (written next to this script, named using your output prefix)
+Outputs (by hand: next to this script; from the driver: coverage_results/)
 -----------------------------------------------------------------------
     <prefix>_folded_depth.txt        per-base depth table reported (Pos, Depth)
     <prefix>_coverage_stats.txt      mean/sd/min/max/breadth of that profile
@@ -79,8 +85,10 @@ checksums of the input files (and, via padding_metadata.txt, of the
 assembly). The values above the block are unchanged by it.
 """
 
+import argparse
 import hashlib
 import os
+import sys
 import math
 import platform
 from datetime import datetime
@@ -90,7 +98,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-__version__ = "4.3"   # coverage pipeline version
+__version__ = "4.4"   # coverage pipeline version
 
 # ============================= EDIT THESE ===================================
 PLOT_TITLE = "Per-base Read Coverage"     # set to the full title you want shown, e.g. "Per-base Read Coverage: Genus species"
@@ -106,8 +114,11 @@ END_MIN_ABS = 3.0         # absolute difference (x) that fails a bin
 END_MARGIN_BP = 500       # keep the window this far from the origin-check
                           # mapping's own sequence ends
 
-# Input files are expected in the same folder as this script.
+# By hand, inputs and outputs are in the same folder as this script. The
+# driver passes --input-dir and --output-dir instead.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+IN_DIR = SCRIPT_DIR
+OUT_DIR = SCRIPT_DIR
 DEPTH_FILENAME = "padded_depth.txt"
 METADATA_FILENAME = "padding_metadata.txt"
 CONTROL_FILENAME = "prelim_filtered_depth.txt"
@@ -323,7 +334,7 @@ def write_profile_outputs(prefix, profile, n, k, header, meta, depth_path,
     positions = np.arange(1, n + 1)
 
     folded_name = f"{prefix}_folded_depth.txt"
-    folded_out_path = os.path.join(SCRIPT_DIR, folded_name)
+    folded_out_path = os.path.join(OUT_DIR, folded_name)
     pd.DataFrame({"Pos": positions, "Depth": profile}).to_csv(
         folded_out_path, sep="\t", index=False)
 
@@ -333,7 +344,7 @@ def write_profile_outputs(prefix, profile, n, k, header, meta, depth_path,
     dmax = int(np.max(profile))
     breadth = int(np.sum(profile > 0))
 
-    stats_out_path = os.path.join(SCRIPT_DIR, f"{prefix}_coverage_stats.txt")
+    stats_out_path = os.path.join(OUT_DIR, f"{prefix}_coverage_stats.txt")
     with open(stats_out_path, "w") as fh:
         fh.write(f"Reference: {header}\n")
         fh.write(f"Genome length (N): {n} bp\n")
@@ -369,7 +380,7 @@ def write_profile_outputs(prefix, profile, n, k, header, meta, depth_path,
     ax.legend(fontsize=10)
     ax.set_xlim(positions.min(), positions.max())
     plt.tight_layout()
-    linear_out_path = os.path.join(SCRIPT_DIR, f"{prefix}_linear_coverage.png")
+    linear_out_path = os.path.join(OUT_DIR, f"{prefix}_linear_coverage.png")
     plt.savefig(linear_out_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
     print(f"Linear plot -> {linear_out_path}")
@@ -389,7 +400,7 @@ def write_profile_outputs(prefix, profile, n, k, header, meta, depth_path,
     ax2.set_xlabel("")
     ax2.legend(loc="upper right", bbox_to_anchor=(1.15, 1.1), fontsize=9)
     plt.tight_layout()
-    circular_out_path = os.path.join(SCRIPT_DIR, f"{prefix}_circular_coverage.png")
+    circular_out_path = os.path.join(OUT_DIR, f"{prefix}_circular_coverage.png")
     plt.savefig(circular_out_path, dpi=300, bbox_inches="tight")
     plt.close(fig2)
     print(f"Circular plot -> {circular_out_path}")
@@ -397,24 +408,45 @@ def write_profile_outputs(prefix, profile, n, k, header, meta, depth_path,
 
 
 def main():
-    depth_path = os.path.join(SCRIPT_DIR, DEPTH_FILENAME)
-    metadata_path = os.path.join(SCRIPT_DIR, METADATA_FILENAME)
-    control_path = os.path.join(SCRIPT_DIR, CONTROL_FILENAME)
-    origin_path = os.path.join(SCRIPT_DIR, ORIGIN_FILENAME)
+    global IN_DIR, OUT_DIR, PLOT_TITLE
+    ap = argparse.ArgumentParser(
+        description="Fold padded depth, run the end-window and interior checks, "
+                    "and write statistics and figures. With no arguments, reads "
+                    "and writes next to this script and asks for a prefix.")
+    ap.add_argument("--input-dir", help="folder holding the coverage_run/ files")
+    ap.add_argument("--output-dir", help="folder for the outputs (created if needed)")
+    ap.add_argument("--prefix", help="output prefix (otherwise asked)")
+    ap.add_argument("--title", help="plot title (otherwise PLOT_TITLE below)")
+    args = ap.parse_args()
+    if args.input_dir:
+        IN_DIR = os.path.abspath(args.input_dir)
+    if args.output_dir:
+        OUT_DIR = os.path.abspath(args.output_dir)
+        os.makedirs(OUT_DIR, exist_ok=True)
+    if args.title:
+        PLOT_TITLE = args.title
+
+    depth_path = os.path.join(IN_DIR, DEPTH_FILENAME)
+    metadata_path = os.path.join(IN_DIR, METADATA_FILENAME)
+    control_path = os.path.join(IN_DIR, CONTROL_FILENAME)
+    origin_path = os.path.join(IN_DIR, ORIGIN_FILENAME)
 
     missing = [p for p in (depth_path, metadata_path) if not os.path.isfile(p)]
     if missing:
-        print("ERROR: could not find the following required file(s) in this")
-        print(f"script's folder ({SCRIPT_DIR}):")
+        print("ERROR: could not find the following required file(s) in")
+        print(f"{IN_DIR}:")
         for p in missing:
             print(f"  - {os.path.basename(p)}")
         print("Copy padded_depth.txt and padding_metadata.txt into this folder")
         print("(from the coverage_run/ folder) and run this again.")
-        return
+        return 1
 
-    out_prefix = input(
-        "Enter an output prefix for this sample (e.g. MySpecies_sample01): "
-    ).strip()
+    if args.prefix:
+        out_prefix = args.prefix.strip()
+    else:
+        out_prefix = input(
+            "Enter an output prefix for this sample (e.g. MySpecies_sample01): "
+        ).strip()
     if not out_prefix:
         out_prefix = "coverage_output"
         print(f"No prefix entered -- using default: '{out_prefix}'")
@@ -451,7 +483,7 @@ def main():
                                 "mapping; see end-window check file)")
                 profile = corrected
                 keep = os.path.join(
-                    SCRIPT_DIR,
+                    OUT_DIR,
                     f"{out_prefix}_folded_depth_before_end_window_correction.txt")
                 pd.DataFrame({"Pos": np.arange(1, n + 1), "Depth": folded}).to_csv(
                     keep, sep="\t", index=False)
@@ -462,7 +494,7 @@ def main():
                                         profile_note)
 
     if end_lines is not None:
-        end_out_path = os.path.join(SCRIPT_DIR, f"{out_prefix}_end_window_check.txt")
+        end_out_path = os.path.join(OUT_DIR, f"{out_prefix}_end_window_check.txt")
         with open(end_out_path, "w") as fh:
             fh.write("\n".join(end_lines) + "\n")
             fh.write("\n".join(provenance_lines(
@@ -480,16 +512,16 @@ def main():
     # the reported profile and the folded profile alike.
     print("")
     if not os.path.isfile(control_path):
-        print(f"NOTE: {CONTROL_FILENAME} not found next to this script, so the")
-        print("interior check was skipped. To run it, copy that file here")
+        print(f"NOTE: {CONTROL_FILENAME} not found in {IN_DIR}, so the")
+        print("interior check was skipped. To run it, copy that file there")
         print("(from the coverage_run/ folder) and run this script again.")
-        return
+        return 0
 
     control = read_depth_column(control_path)
     lines = compare_to_control(folded, control, n, k, folded_name)
     if lines is None:
-        return
-    comparison_out_path = os.path.join(SCRIPT_DIR, f"{out_prefix}_control_comparison.txt")
+        return 0
+    comparison_out_path = os.path.join(OUT_DIR, f"{out_prefix}_control_comparison.txt")
     with open(comparison_out_path, "w") as fh:
         fh.write("\n".join(lines) + "\n")
         fh.write("\n".join(provenance_lines("02_fold_and_plot.py",
@@ -497,7 +529,8 @@ def main():
                                              meta)) + "\n")
     print("\n".join(lines))
     print(f"Interior check -> {comparison_out_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -55,7 +55,7 @@ import argparse
 import sys
 from collections import Counter
 
-__version__ = "4.3"   # coverage pipeline version
+__version__ = "4.4"   # coverage pipeline version
 
 # Valid IUPAC nucleotide codes (upper-case; sequence is upper-cased on read).
 VALID_BASES = set("ACGTUNRYSWKMBDHV")

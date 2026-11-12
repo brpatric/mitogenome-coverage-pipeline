@@ -1,4 +1,4 @@
 title: Mitogenome Coverage Pipeline
-description: Circularity-corrected per-base read coverage for mitochondrial genomes (version 4.3)
-version: 4.3
+description: Circularity-corrected per-base read coverage for mitochondrial genomes (version 4.4)
+version: 4.4
 theme: jekyll-theme-minimal

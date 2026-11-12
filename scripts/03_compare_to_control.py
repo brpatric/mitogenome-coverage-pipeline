@@ -43,7 +43,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 
-__version__ = "4.3"   # coverage pipeline version
+__version__ = "4.4"   # coverage pipeline version
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONTROL_FILENAME = "prelim_filtered_depth.txt"

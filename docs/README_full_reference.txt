@@ -6,7 +6,7 @@ Per-base coverage calculation and visualization for circularized mitochondrial
 genomes assembled from paired-end Illumina data, with correction for the
 coverage artifact introduced at the circular origin.
 
-Version 4.3 (November 2026). See section 13 for the version history.
+Version 4.4 (November 2026). See section 13 for the version history.
 
 
 ================================================================================
@@ -40,7 +40,8 @@ coverage figures. It was developed for assemblies produced by NOVOPlasty [1],
 but works with any correctly circularized single-contig assembly, including
 GetOrganelle output.
 
-The pipeline runs in two parts:
+The pipeline runs in two parts, which can be run together in one command
+(put 02_fold_and_plot.py next to run_pipeline.sh) or separately:
 
   Part A (WSL/Ubuntu)
       Checks on the assembly, indexing, mapping, filtering and depth
@@ -137,7 +138,8 @@ under Windows Python/IDLE rather than inside WSL.
   run_pipeline.sh                  >>> RUN THIS (in WSL)
         Driver script. Runs Phases 0-8: checks, mapping, filtering, depth,
         the padding diagnostic report, the unpadded control depth and the
-        origin-check depth.
+        origin-check depth. If 02_fold_and_plot.py is in the same folder,
+        it also runs it (Phase 9), so the whole pipeline runs at once.
 
   00_check_terminal_overlap.py     called automatically by run_pipeline.sh
         Verifies the assembly has no duplicated overlap at the circular
@@ -150,7 +152,9 @@ under Windows Python/IDLE rather than inside WSL.
         --diagnose, writes the padding diagnostic report (Phase 6; MAPQ,
         soft-clipping, double-count test).
 
-  02_fold_and_plot.py              >>> RUN THIS (in IDLE or WSL)
+  02_fold_and_plot.py              run by the driver (Phase 9) if it sits
+                                   next to run_pipeline.sh; otherwise RUN
+                                   THIS (in IDLE or WSL)
         Folds depth to true coordinates, runs the end-window and interior
         checks, computes statistics and makes figures.
 
@@ -163,10 +167,11 @@ under Windows Python/IDLE rather than inside WSL.
 
 IMPORTANT: 00_check_terminal_overlap.py and 01_build_padded_reference.py must
 sit in the SAME FOLDER as run_pipeline.sh. These three files are all the
-driver needs. The driver stops with an explicit error if a required
+driver needs; add 02_fold_and_plot.py to the same folder to run everything
+in one command. The driver stops with an explicit error if a required
 script is missing, rather than silently skipping it.
 
-Every script carries a version number (pipeline version 4.3), which it
+Every script carries a version number (pipeline version 4.4), which it
 prints or writes into its output; see section 7, PROVENANCE.
 
 
@@ -185,10 +190,11 @@ Place these in one working folder, with the scripts in a scripts/ subfolder:
             run_pipeline.sh
             00_check_terminal_overlap.py
             01_build_padded_reference.py
+            02_fold_and_plot.py     <- optional here: the driver then runs it
 
-02_fold_and_plot.py (and the optional 03_compare_to_control.py) run
-separately, in WSL or Windows Python/IDLE, and can be kept anywhere
-(section 6.2).
+Without 02_fold_and_plot.py in scripts/, run it separately, in WSL or
+Windows Python/IDLE, from any folder (section 6.2). The optional
+03_compare_to_control.py is always run separately.
 
 assembly.fasta REQUIREMENTS
 ---------------------------
@@ -263,6 +269,15 @@ block at the top:
                                       rotated? Empty = asked at the start
   ORIGINAL_ASSEMBLY  (empty)          if ROTATED="yes", the unrotated
                                       assembler output. Empty = asked
+  RESULTS_DIR        coverage_results Phase 9 output folder, inside the
+                                      specimen folder
+  PREFIX             (empty)          Phase 9 output prefix. Empty = the
+                                      specimen folder's name
+  PLOT_TITLE         Per-base Read    title on the Phase 9 figures
+                     Coverage
+
+RESULTS_DIR, PREFIX and PLOT_TITLE are used only when 02_fold_and_plot.py
+sits next to run_pipeline.sh.
 
 MIN_PAD and SD_MULTIPLIER rarely need changing.
 
@@ -323,6 +338,14 @@ WHAT THE DRIVER DOES
             check (section 8). The shift is recorded in padding_metadata.txt
             as origin_check_shift_S.
 
+  Phase 9   Only if 02_fold_and_plot.py sits next to run_pipeline.sh: runs
+            it on the coverage_run/ files (Part B, section 6.2), writing the
+            statistics, figures and check results to RESULTS_DIR, and adds
+            both check results to run_provenance.txt. It needs NumPy,
+            pandas and Matplotlib in WSL. If it fails, the mapping outputs
+            are kept and the driver says so; run 02_fold_and_plot.py by
+            hand once the problem is fixed.
+
 BOWTIE2 MUST BE RUN IN --local MODE
 -----------------------------------
 The default end-to-end mode requires the entire read to align, which is
@@ -342,6 +365,11 @@ control here.
 --------------------------------------------------------------------------------
 6.2  PART B - FOLDING, PLOTTING AND VALIDATION
 --------------------------------------------------------------------------------
+
+If 02_fold_and_plot.py sits next to run_pipeline.sh, the driver does all
+of this itself (Phase 9) and you can skip this section; the outputs are in
+coverage_results/, named with PREFIX, and the figures use PLOT_TITLE.
+Otherwise, run it by hand:
 
 Copy these four files from coverage_run/ into the same folder as
 02_fold_and_plot.py:
@@ -401,8 +429,9 @@ FROM PART A, IN coverage_run/
                           coordinates) - used by Part B for the end-window
                           check
 
-FROM PART B
------------
+FROM PART B (in coverage_results/ when run by the driver; otherwise next to
+02_fold_and_plot.py)
+--------------------------------------------------------------------------
   <prefix>_folded_depth.txt       Reported per-base depth in the assembly's
                                   coordinates
   <prefix>_coverage_stats.txt     MEAN, SD, MIN, MAX, BREADTH - report these;
@@ -575,8 +604,9 @@ COVERAGE LOOKS DEPRESSED NEAR POSITION 1
 ----------------------------------------
 Check <prefix>_end_window_check.txt first. Confirm no "-q" MAPQ threshold
 has been added to the filtering step (see section 6.1). If the filter is
-clean, check <prefix>_control_comparison.txt, then inspect coverage_run/diagnostic_report_<specimen>_<date>.txt (MAPQ in
-the padded window, soft-clipping near the junction, and the double-count
+clean, check <prefix>_control_comparison.txt, then inspect
+coverage_run/diagnostic_report_<specimen>_<date>.txt (MAPQ in the padded
+window, soft-clipping near the junction, and the double-count
 test, which should report 0 reads in both copies). The driver writes it in
 Phase 6; for a coverage_run/ folder from an older run, produce it by hand:
 
@@ -698,6 +728,15 @@ the mean, consider also reporting the median depth (from
 ================================================================================
 13. VERSION HISTORY
 ================================================================================
+
+  Version 4.4 (November 2026)
+    - run_pipeline.sh runs 02_fold_and_plot.py (Phase 9) if it sits next to
+      the driver, writing its outputs to coverage_results/ in the specimen
+      folder; new settings RESULTS_DIR, PREFIX and PLOT_TITLE. Both check
+      results are added to run_provenance.txt.
+    - 02_fold_and_plot.py accepts --input-dir, --output-dir, --prefix and
+      --title; with no arguments it works as before.
+    - Computed values are unchanged from 4.3.
 
   Version 4.3 (November 2026)
     - Three scripts for the driver: the rotation check is now

@@ -7,14 +7,16 @@
 # (Ubuntu). See README.txt for the full step-by-step explanation of what
 # each phase does and why.
 #
-# Pipeline version 4.3. Phase 0 asks whether the assembly was rotated
+# Pipeline version 4.4. Phase 0 asks whether the assembly was rotated
 # (or reads ROTATED below); if so, it runs the overlap check on the
 # unrotated assembler output and verifies the rotation, and stops if either
 # fails. Phase 6 writes the padding diagnostic report (01_build_padded_
 # reference.py --diagnose). Phase 7 builds the unpadded control depth file
 # (prelim_filtered_depth.txt) and Phase 8 maps the reads to a copy of the
 # assembly starting halfway round the circle (origin_check_depth.txt), used
-# by 02_fold_and_plot.py for the interior and end-window checks. Reads may
+# by 02_fold_and_plot.py for the interior and end-window checks. If
+# 02_fold_and_plot.py sits next to this script, Phase 9 runs it and writes
+# the statistics, figures and check results to RESULTS_DIR. Reads may
 # be .fastq or .fastq.gz and are used in place (not copied); file settings
 # accept names, relative paths or absolute paths. Writes run_provenance.txt
 # (date, pipeline and tool versions, settings, input checksums and check
@@ -43,12 +45,18 @@ ROTATED=""                     # "yes" if you rotated the assembly (for
                                # asked when the script starts; a run with no
                                # one to answer (e.g. a cluster job) stops
                                # instead of guessing.
+RESULTS_DIR="coverage_results" # where 02_fold_and_plot.py's outputs go (a
+                               # folder in the specimen folder). Used only if
+                               # 02_fold_and_plot.py is next to this script.
+PREFIX=""                      # output file prefix; empty = specimen folder
+                               # name (e.g. Hogna_carolinensis_Mt19)
+PLOT_TITLE="Per-base Read Coverage"  # title on both coverage figures
 ORIGINAL_ASSEMBLY=""           # if ROTATED="yes": the unrotated assembler
                                # output (e.g. "original_assembly.fasta").
                                # Leave empty to be asked.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # -----------------------------------------------------------------------------
-PIPELINE_VERSION="4.3"
+PIPELINE_VERSION="4.4"
 
 # ------------------- rotated or not? (answer required) ----------------------
 norm_yesno() { case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
@@ -110,6 +118,11 @@ for f in "$ASSEMBLY_PATH" "$R1_PATH" "$R2_PATH" ${ORIGINAL_PATH:+"$ORIGINAL_PATH
     fi
 done
 
+SPECIMEN_DIR="$PWD"
+[ -z "$PREFIX" ] && PREFIX="$(basename "$SPECIMEN_DIR")"
+RESULTS_PATH="$(abspath "$RESULTS_DIR")"
+FOLD_SCRIPT="$SCRIPT_DIR/02_fold_and_plot.py"
+
 mkdir -p "$OUTDIR"
 cd "$OUTDIR"
 # The assembly is small, so a working copy is kept with the results. The
@@ -139,6 +152,11 @@ echo "THREADS            : $THREADS"
 echo "MIN_PAD            : $MIN_PAD"
 echo "SD_MULTIPLIER      : $SD_MULTIPLIER"
 echo "MIN_OVERLAP        : $MIN_OVERLAP"
+if [ -f "$FOLD_SCRIPT" ]; then
+echo "RESULTS_DIR        : $RESULTS_PATH"
+echo "PREFIX             : $PREFIX"
+echo "PLOT_TITLE         : $PLOT_TITLE"
+fi
 echo "bowtie2 mode       : --local (default scoring and reporting)"
 echo "alignment filter   : samtools view -f 2 (properly paired), no MAPQ threshold"
 echo ""
@@ -356,6 +374,32 @@ if [ "$N_ORIGIN" != "$N_EXPECTED" ]; then
     echo "!! WARNING: origin_check_depth.txt has $N_ORIGIN rows; expected N = $N_EXPECTED."
 fi
 
+FOLD_RC=""
+if [ -f "$FOLD_SCRIPT" ]; then
+    echo ""
+    echo "============================================================"
+    echo "PHASE 9: Fold depth, run the checks, write statistics and figures"
+    echo "============================================================"
+    set +e
+    MPLBACKEND=Agg python3 "$FOLD_SCRIPT" --input-dir . --output-dir "$RESULTS_PATH" \
+        --prefix "$PREFIX" --title "$PLOT_TITLE"
+    FOLD_RC=$?
+    set -e
+    STATS="$RESULTS_PATH/${PREFIX}_coverage_stats.txt"
+    if [ "$FOLD_RC" -eq 0 ] && [ -f "$STATS" ]; then
+        echo "Results folder       : $RESULTS_PATH" >> "$PROV"
+        echo "End-window check     : $(grep '^End-window check:' "$STATS" | sed 's/^End-window check: //')" >> "$PROV"
+        CMP="$RESULTS_PATH/${PREFIX}_control_comparison.txt"
+        [ -f "$CMP" ] && echo "Interior check       : $(grep '^Difference' "$CMP" | sed 's/.*: //'); same minimum: $(grep '^Same minimum' "$CMP" | sed 's/.*: //')" >> "$PROV"
+    else
+        echo "!! WARNING: 02_fold_and_plot.py did not complete (exit code $FOLD_RC)."
+        echo "!! The mapping outputs in $OUTDIR/ are complete; run 02_fold_and_plot.py"
+        echo "!! by hand once the problem is fixed (often a missing Python package:"
+        echo "!!   pip install numpy pandas matplotlib )."
+        echo "Fold and plot (02)   : did not complete (exit code $FOLD_RC)" >> "$PROV"
+    fi
+fi
+
 {
 echo "Genome length N      : $N_EXPECTED bp"
 echo "Origin-check shift S : $S bp (origin-check assembly starts at position $((S + 1)))"
@@ -382,9 +426,17 @@ echo "  - diagnostic_report_*.txt     (Phase 6 padding diagnostic report)"
 echo "  - run_provenance.txt          (versions, settings, checksums, results)"
 echo "  - prelim.stats.txt            (insert size stats used to pick K)"
 echo ""
-echo "Next: copy padded_depth.txt, padding_metadata.txt,"
-echo "prelim_filtered_depth.txt and origin_check_depth.txt next to"
-echo "02_fold_and_plot.py and run it (in WSL or in your Windows Python IDLE"
-echo "-- see README.txt). It folds the depth, runs the end-window and"
-echo "interior checks, and writes the statistics and figures."
+if [ "$FOLD_RC" = "0" ]; then
+    echo "Statistics, figures and check results: $RESULTS_PATH/"
+    echo "  - ${PREFIX}_coverage_stats.txt      (values to report)"
+    echo "  - ${PREFIX}_end_window_check.txt    ${PREFIX}_control_comparison.txt"
+    echo "  - ${PREFIX}_linear_coverage.png     ${PREFIX}_circular_coverage.png"
+else
+    echo "Next: copy padded_depth.txt, padding_metadata.txt,"
+    echo "prelim_filtered_depth.txt and origin_check_depth.txt next to"
+    echo "02_fold_and_plot.py and run it (in WSL or in your Windows Python IDLE"
+    echo "-- see README.txt). It folds the depth, runs the end-window and"
+    echo "interior checks, and writes the statistics and figures. (Or put"
+    echo "02_fold_and_plot.py next to run_pipeline.sh and the driver runs it.)"
+fi
 echo "============================================================"

@@ -2,7 +2,7 @@
 
 Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file.
 
-**Version 4.3** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
+**Version 4.4** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
 ## Why a correction is needed
 
@@ -33,7 +33,8 @@ Set up one folder per specimen:
     R1.fastq.gz               forward reads (.fastq or .fastq.gz)
     R2.fastq.gz               reverse reads
     scripts/                  run_pipeline.sh, 00_check_terminal_overlap.py,
-                              01_build_padded_reference.py
+                              01_build_padded_reference.py, and (optional)
+                              02_fold_and_plot.py
 ```
 
 The file names above are the defaults; your files can have any names. Open `scripts/run_pipeline.sh` and edit the settings block at the top to match them:
@@ -45,28 +46,35 @@ R2="R2.fastq.gz"               # your reverse reads
 THREADS=8                      # processor threads available
 ROTATED=""                     # "yes" or "no"; leave empty to be asked
 ORIGINAL_ASSEMBLY=""           # if rotated: the unrotated assembler output
+PREFIX=""                      # output prefix; empty = specimen folder name
+PLOT_TITLE="Per-base Read Coverage"   # title on the coverage figures
 ```
 
 - **`ASSEMBLY`, `R1`, `R2`:** set these to your mitogenome FASTA and your forward and reverse read files. Give each as a file name in the specimen folder, a path relative to it, or an absolute path, for example `Sample1_R1.fastq.gz`, `../shared_reads/Sample1_R1.fastq.gz` or `/mnt/c/data/Sample1_R1.fastq.gz`. Reads can be gzipped or not. The driver stops with a clear message if a file is not found.
 - **`THREADS`:** the number of processor threads to use.
 - **`ROTATED`, `ORIGINAL_ASSEMBLY`:** whether you rotated the assembly (for example to begin at *cox1*) and, if so, the unrotated assembler output, named the same way. If you leave them empty, the driver asks when it starts. A run with no one to answer, such as a cluster job, stops with a message instead of guessing, so set them there. For a rotated assembly the driver checks the unrotated file for leftover circularization overlap, verifies that the rotation is exact, and stops if either check fails.
+- **`PREFIX`, `PLOT_TITLE`:** used only when `02_fold_and_plot.py` is in `scripts/` (see below). `PREFIX` names the output files; left empty, it is the specimen folder's name.
 - Leave `MIN_PAD`, `SD_MULTIPLIER` and `MIN_OVERLAP` at their defaults (300, 4, 20).
 
-1. Run the driver from the specimen folder, and answer its questions if it asks. Everything lands in `coverage_run/`:
-   ```
-   bash scripts/run_pipeline.sh
-   ```
-2. Put `02_fold_and_plot.py` in any folder (WSL or Windows), and copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to it.
-3. Set `PLOT_TITLE` near the top of `02_fold_and_plot.py`, then run it and enter an output prefix (for example `Genus_species_specimenID`) when asked:
+**All in one run.** With `02_fold_and_plot.py` in `scripts/`, run the driver from the specimen folder and answer its questions if it asks:
+```
+bash scripts/run_pipeline.sh
+```
+The mapping files land in `coverage_run/`, and the statistics, figures and check results in `coverage_results/` (Phase 9). That is the whole procedure. The driver needs NumPy, pandas and Matplotlib installed in WSL for this step; if they are missing, it finishes the mapping, says so, and you can run `02_fold_and_plot.py` separately.
+
+**In two parts.** Without `02_fold_and_plot.py` in `scripts/`, the driver stops after the mapping. Then:
+
+1. Put `02_fold_and_plot.py` in any folder (WSL or Windows), and copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to it.
+2. Set `PLOT_TITLE` near the top of `02_fold_and_plot.py`, then run it (F5 in IDLE, or from the shell) and enter an output prefix (for example `Genus_species_specimenID`) when asked:
    ```
    python3 02_fold_and_plot.py
    ```
 
 ### Optional steps
 
-These are not needed for a routine run; step 3 already runs both checks.
+These are not needed for a routine run; `02_fold_and_plot.py` already runs both checks.
 
-- **Standalone control comparison (`03_compare_to_control.py`).** Use this for a depth profile folded with a version of `02_fold_and_plot.py` earlier than 4.0, which did not run the comparison itself. Copy `<prefix>_folded_depth.txt`, `prelim_filtered_depth.txt` and `padding_metadata.txt` next to the script, then run it. It writes `<prefix>_control_comparison.txt` with the same values step 3 would report:
+- **Standalone control comparison (`03_compare_to_control.py`).** Use this for a depth profile folded with a version of `02_fold_and_plot.py` earlier than 4.0, which did not run the comparison itself. Copy `<prefix>_folded_depth.txt`, `prelim_filtered_depth.txt` and `padding_metadata.txt` next to the script, then run it. It writes `<prefix>_control_comparison.txt` with the same values `02_fold_and_plot.py` would report:
   ```
   python3 03_compare_to_control.py
   ```
@@ -78,13 +86,16 @@ These are not needed for a routine run; step 3 already runs both checks.
 
 ## Outputs
 
+When the driver runs `02_fold_and_plot.py`, the `<prefix>_` files below are in `coverage_results/`; run by hand, they are next to the script.
+
+
 | File | Contents | What to look for |
 | --- | --- | --- |
 | `<prefix>_coverage_stats.txt` | Genome length, *K*, mean, SD, minimum, maximum, breadth of coverage, end-window check result | The values to report |
 | `<prefix>_end_window_check.txt` | Folded vs origin-check depth across the end windows (last and first *K* bp), in 200-bp bins | PASSED; if FAILED, the reported profile's end windows come from the origin-check mapping |
 | `<prefix>_control_comparison.txt` | Corrected vs unpadded depth across the genome interior (positions *K*+1 to *N*−*K*) | Difference 0% or very close; same minimum at the same position(s) |
 | `<prefix>_linear_coverage.png`, `<prefix>_circular_coverage.png` | Coverage figures (300 dpi) | No dip, spike or step at either end of the genome |
-| `coverage_run/run_provenance.txt` | Date, software versions, settings, input checksums, check results | Keep with the results |
+| `coverage_run/run_provenance.txt` | Date, software versions, settings, input checksums, check results (including both checks when the driver runs `02`) | Keep with the results |
 | `coverage_run/diagnostic_report_<specimen>_<date>.txt` | MAPQ in the padded window, soft-clipping near the junction, double-count test | Reads present in both copies: 0; consult if a check fails |
 
 The interior means in the comparison file leave out *K* bp at each end, so they differ from the whole-genome mean; report the whole-genome values from the statistics file.
@@ -113,16 +124,16 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 
 | Path | Purpose |
 | --- | --- |
-| `scripts/run_pipeline.sh` | Driver: checks, mapping, padding, filtering, depth, diagnostic report, control and origin-check depth, provenance record |
+| `scripts/run_pipeline.sh` | Driver: checks, mapping, padding, filtering, depth, diagnostic report, control and origin-check depth, provenance record; runs `02_fold_and_plot.py` if present |
 | `scripts/00_check_terminal_overlap.py` | Checks for leftover circularization overlap and invalid characters; with `--verify-rotation`, confirms a rotated assembly is an exact cyclic shift of the original |
 | `scripts/01_build_padded_reference.py` | Builds the padded reference and its metadata; with `--diagnose`, writes the padding diagnostic report |
-| `scripts/02_fold_and_plot.py` | Folds depth, runs the end-window and interior checks, computes statistics, draws figures |
+| `scripts/02_fold_and_plot.py` | Folds depth, runs the end-window and interior checks, computes statistics, draws figures; run by the driver (Phase 9) or by hand |
 | `scripts/03_compare_to_control.py` | Optional standalone control comparison, for profiles folded with earlier versions |
-| `docs/Coverage_pipeline_quick_start.docx` | Short quick start guide (three pages) |
-| `docs/Coverage_calculation_and_visualization_protocol_v4.3.docx` | Full step-by-step protocol with embedded scripts |
+| `docs/Coverage_pipeline_quick_start.docx` | Short quick start guide (four pages) |
+| `docs/Coverage_calculation_and_visualization_protocol_v4.4.docx` | Full step-by-step protocol with embedded scripts |
 | `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.3), Results and figure-legend templates, and references |
+| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.4), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
 | `CITATION.cff` | Citation information (powers GitHub's “Cite this repository” button) |
 
@@ -134,7 +145,7 @@ The pipeline expects a single circular contig and paired-end reads. The overlap 
 
 If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.3. https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.4. https://github.com/brpatric/mitogenome-coverage-pipeline
 
 BibTeX:
 
@@ -142,7 +153,7 @@ BibTeX:
 @software{patrick_2026_mitogenome_coverage,
   author  = {Patrick, L. Brian},
   title   = {Mitogenome Coverage Pipeline},
-  version = {4.3},
+  version = {4.4},
   year    = {2026},
   url     = {https://github.com/brpatric/mitogenome-coverage-pipeline}
 }
