@@ -17,7 +17,7 @@ The pipeline pads the reference by appending its first *K* bp to its 3′ end, w
 | Bowtie2 | 2.4.4 used in our analyses | `sudo apt install bowtie2` |
 | SAMtools | 1.13 | `sudo apt install samtools` |
 | Python | 3.8 or later | `pip install numpy pandas matplotlib` |
-| Assembly | FASTA, one circularized contig | Nucleotide and IUPAC codes only (no NOVOPlasty `*` flags) |
+| Assembly | FASTA, one circularized contig (e.g. from NOVOPlasty; Dierckxsens et al. 2017) | Nucleotide and IUPAC codes only (no NOVOPlasty `*` flags) |
 | Reads | Paired-end FASTQ (R1, R2), plain (`.fastq`) or gzipped (`.fastq.gz`) | Used where they are; no need to unzip or copy. Single-end data are not supported |
 
 The mapping steps run under Linux (on Windows, inside WSL with Ubuntu). The final Python step also runs in Windows Python/IDLE.
