@@ -7,7 +7,9 @@
 # (Ubuntu). See README.txt for the full step-by-step explanation of what
 # each phase does and why.
 #
-# Pipeline version 4.1.1. Reads may be .fastq or .fastq.gz and are used in
+# Pipeline version 4.2. Phase 7 maps the reads to a copy of the assembly
+# cut at the opposite side of the circle (origin_check_depth.txt), used by
+# 02_fold_and_plot.py to check the ends of the sequence. Reads may be .fastq or .fastq.gz and are used in
 # place (not copied); file settings accept names, relative paths or
 # absolute paths. Writes run_provenance.txt (date, pipeline and tool
 # versions, settings, input checksums and check results) to the output
@@ -38,7 +40,7 @@ ORIGINAL_ASSEMBLY=""           # OPTIONAL: if you rotated the assembly, the
                                # records the result. Leave empty otherwise.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # -----------------------------------------------------------------------------
-PIPELINE_VERSION="4.1.1"
+PIPELINE_VERSION="4.2"
 
 # Resolve input paths against the specimen folder (where this is run from),
 # before moving into the output folder. Absolute paths are kept as given.
@@ -247,13 +249,48 @@ if [ "$N_CONTROL" != "$N_EXPECTED" ]; then
     echo "!! WARNING: prelim_filtered_depth.txt has $N_CONTROL rows; expected N = $N_EXPECTED."
 fi
 
+echo ""
+echo "============================================================"
+echo "PHASE 7: Origin-check mapping (for the end-window check)"
+echo "============================================================"
+# The interior check (Phase 6) cannot see the ends of the sequence, which is
+# exactly where padding acts. Here the reads are mapped, unpadded, to a copy
+# of the assembly cut at the opposite side of the circle, so the original
+# start/end region lies deep in its interior. 02_fold_and_plot.py compares
+# this profile with the folded profile across the end windows.
+S=$(python3 - <<'PY'
+seq = "".join(l.strip() for l in open("assembly.fasta") if not l.startswith(">")).upper()
+s = len(seq) // 2
+with open("origin_check_assembly.fasta", "w") as fh:
+    fh.write(f">origin_check_shift_{s}\n")
+    rot = seq[s:] + seq[:s]
+    for i in range(0, len(rot), 70):
+        fh.write(rot[i:i + 70] + "\n")
+print(s)
+PY
+)
+echo "Origin-check assembly starts at original position $((S + 1))"
+printf "origin_check_shift_S\t%s\n" "$S" >> padding_metadata.txt
+bowtie2-build origin_check_assembly.fasta origin_check_index
+bowtie2 --local -p "$THREADS" -x origin_check_index -1 "$R1_PATH" -2 "$R2_PATH" -S origin_check.sam
+samtools view -bS origin_check.sam | samtools sort -o origin_check.sorted.bam
+samtools view -b -f 2 origin_check.sorted.bam > origin_check_filtered.bam
+samtools index origin_check_filtered.bam
+samtools depth -a origin_check_filtered.bam > origin_check_depth.txt
+N_ORIGIN=$(wc -l < origin_check_depth.txt | tr -d '[:space:]')
+if [ "$N_ORIGIN" != "$N_EXPECTED" ]; then
+    echo "!! WARNING: origin_check_depth.txt has $N_ORIGIN rows; expected N = $N_EXPECTED."
+fi
+
 {
 echo "Genome length N      : $N_EXPECTED bp"
+echo "Origin-check shift S : $S bp (origin-check assembly starts at position $((S + 1)))"
 echo "Properly paired alignments (padded)   : $(samtools view -c filtered.bam)"
 echo "Properly paired alignments (unpadded) : $(samtools view -c prelim_filtered.bam)"
+echo "Properly paired alignments (origin check) : $(samtools view -c origin_check_filtered.bam)"
 echo ""
 echo "[Output checksums (MD5)]"
-md5sum padded_depth.txt padding_metadata.txt prelim_filtered_depth.txt | awk '{printf "%-26s : %s\n", $2, $1}'
+md5sum padded_depth.txt padding_metadata.txt prelim_filtered_depth.txt origin_check_depth.txt | awk '{printf "%-26s : %s\n", $2, $1}'
 echo ""
 echo "Run finished       : $(date '+%Y-%m-%d %H:%M:%S %Z')"
 } >> "$PROV"
@@ -264,13 +301,14 @@ echo "DONE. Outputs written to: $OUTDIR/"
 echo "  - padded_depth.txt            (raw per-base depth, length N+K)"
 echo "  - padding_metadata.txt        (N, K -- needed by the fold/plot step)"
 echo "  - prelim_filtered_depth.txt   (unpadded control depth, length N)"
+echo "  - origin_check_depth.txt      (origin-check depth, length N)"
 echo "  - overlap_check.log           (Phase 0 report)"
 echo "  - run_provenance.txt          (versions, settings, checksums, results)"
 echo "  - prelim.stats.txt            (insert size stats used to pick K)"
 echo ""
-echo "Next: copy padded_depth.txt, padding_metadata.txt and"
-echo "prelim_filtered_depth.txt next to 02_fold_and_plot.py and run it"
-echo "(in WSL or in your Windows Python IDLE -- see README.txt). It folds"
-echo "the depth, writes the statistics and figures, and runs the control"
-echo "comparison."
+echo "Next: copy padded_depth.txt, padding_metadata.txt,"
+echo "prelim_filtered_depth.txt and origin_check_depth.txt next to"
+echo "02_fold_and_plot.py and run it (in WSL or in your Windows Python IDLE"
+echo "-- see README.txt). It folds the depth, runs the end-window and"
+echo "interior checks, and writes the statistics and figures."
 echo "============================================================"

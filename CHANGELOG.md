@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.2 (November 2026)
+
+- New end-window check. `run_pipeline.sh` Phase 7 maps the reads, unpadded, to a copy of the assembly starting halfway round the circle and writes `origin_check_depth.txt`; the shift is recorded in `padding_metadata.txt` (`origin_check_shift_S`).
+- `02_fold_and_plot.py` compares the folded profile with that profile across the end windows (last and first *K* bp) in 200-bp bins and writes `<prefix>_end_window_check.txt`. A bin fails at >= 10% and >= 3x difference. If any bin fails, the end windows of the reported profile are taken from the origin-check mapping and the folded profile is kept as `<prefix>_folded_depth_before_end_window_correction.txt`.
+- The statistics file gains an `End-window check:` line.
+- Reason: in two rotated *Hogna carolinensis* assemblies the folded profile overestimated depth near position 1 while the interior comparison passed.
+- Profiles that pass the check are unchanged from 4.1.1.
+
 ## 4.1.1 (November 2026)
 
 - `run_pipeline.sh`: read files may be `.fastq` or `.fastq.gz` and are used where they are, not copied into `coverage_run/`.

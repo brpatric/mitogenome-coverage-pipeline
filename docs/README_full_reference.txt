@@ -6,7 +6,7 @@ Per-base coverage calculation and visualization for circularized mitochondrial
 genomes assembled from paired-end Illumina data, with correction for the
 coverage artifact introduced at the circular origin.
 
-Version 4.1.1 (November 2026). See section 13 for the version history.
+Version 4.2 (November 2026). See section 13 for the version history.
 
 
 ================================================================================
@@ -134,8 +134,8 @@ under Windows Python/IDLE rather than inside WSL.
 ================================================================================
 
   run_pipeline.sh                  >>> RUN THIS (in WSL)
-        Driver script. Runs Phases 0-6: checks, mapping, filtering, depth,
-        and the unpadded control depth.
+        Driver script. Runs Phases 0-7: checks, mapping, filtering, depth,
+        the unpadded control depth and the origin-check depth.
 
   00_check_terminal_overlap.py     called automatically by run_pipeline.sh
         Verifies the assembly has no duplicated overlap at the circular
@@ -145,8 +145,8 @@ under Windows Python/IDLE rather than inside WSL.
         Builds the padded reference and writes padding_metadata.txt.
 
   02_fold_and_plot.py              >>> RUN THIS (in IDLE or WSL)
-        Folds depth to true coordinates, computes statistics, makes figures,
-        and compares the result with the unpadded control.
+        Folds depth to true coordinates, runs the end-window and interior
+        checks, computes statistics and makes figures.
 
   verify_rotation.py               needed if you rotated the assembly
         Confirms the rotated assembly is an exact cyclic shift of the
@@ -169,7 +169,7 @@ sit in the SAME FOLDER as run_pipeline.sh, as must verify_rotation.py if you
 set ORIGINAL_ASSEMBLY. The driver stops with an explicit error if a required
 script is missing, rather than silently skipping it.
 
-Every script carries a version number (pipeline version 4.1), which it
+Every script carries a version number (pipeline version 4.2), which it
 prints or writes into its output; see section 7, PROVENANCE.
 
 
@@ -302,6 +302,12 @@ WHAT THE DRIVER DOES
             and extracts its depth, giving the control used to validate the
             correction (prelim_filtered_depth.txt).
 
+  Phase 7   Maps the reads, unpadded, to a copy of the assembly starting
+            halfway round the circle, filters exactly as in Phase 4 and
+            extracts its depth (origin_check_depth.txt), for the end-window
+            check (section 8). The shift is recorded in padding_metadata.txt
+            as origin_check_shift_S.
+
 BOWTIE2 MUST BE RUN IN --local MODE
 -----------------------------------
 The default end-to-end mode requires the entire read to align, which is
@@ -322,12 +328,13 @@ control here.
 6.2  PART B - FOLDING AND PLOTTING
 --------------------------------------------------------------------------------
 
-Copy these three files from coverage_run/ into the same folder as
+Copy these four files from coverage_run/ into the same folder as
 02_fold_and_plot.py:
 
     padded_depth.txt
     padding_metadata.txt
-    prelim_filtered_depth.txt   (needed only for the control comparison)
+    prelim_filtered_depth.txt   (needed for the interior check)
+    origin_check_depth.txt      (needed for the end-window check)
 
 Open the script and set:
 
@@ -342,10 +349,11 @@ When prompted, type an output prefix for the specimen (for example
 Genus_species_specimenID) and press Enter. All outputs are named with that
 prefix and written next to the script.
 
-If prelim_filtered_depth.txt is present, the script also runs the control
-comparison (section 8) and writes <prefix>_control_comparison.txt. If it is
-absent, the script prints a note, skips the comparison, and produces the
-other outputs as normal.
+If origin_check_depth.txt is present, the script runs the end-window check
+(section 8) and writes <prefix>_end_window_check.txt. If
+prelim_filtered_depth.txt is present, it also runs the interior check and
+writes <prefix>_control_comparison.txt. If either file is absent, the script
+prints a note, skips that check, and produces the other outputs as normal.
 
 
 
@@ -368,18 +376,28 @@ FROM PART A, IN coverage_run/
   filtered.bam            Filtered alignments, retained for diagnostics
   prelim_filtered_depth.txt
                           Unpadded control depth (N rows) - used by Part B
-                          for the control comparison
+                          for the interior check
+  origin_check_depth.txt  Origin-check depth (N rows, in the shifted copy's
+                          coordinates) - used by Part B for the end-window
+                          check
 
 FROM PART B
 -----------
-  <prefix>_folded_depth.txt       Corrected per-base depth in true genome
+  <prefix>_folded_depth.txt       Reported per-base depth in the assembly's
                                   coordinates
-  <prefix>_coverage_stats.txt     MEAN, SD, MIN, MAX, BREADTH - report these
+  <prefix>_coverage_stats.txt     MEAN, SD, MIN, MAX, BREADTH - report these;
+                                  also states the end-window check result
   <prefix>_linear_coverage.png    Linear coverage figure (300 dpi)
   <prefix>_circular_coverage.png  Circular/polar alternative
   <prefix>_control_comparison.txt Interior mean and minimum depth of the
                                   corrected and control profiles (only if
                                   prelim_filtered_depth.txt was present)
+  <prefix>_end_window_check.txt   Folded vs origin-check depth across the end
+                                  windows (only if origin_check_depth.txt
+                                  was present)
+  <prefix>_folded_depth_before_end_window_correction.txt
+                                  The folded profile, kept for the record
+                                  (only if the end-window check failed)
 
 PROVENANCE
 ----------
@@ -389,14 +407,16 @@ Each run documents how it was produced:
       Date; pipeline version; Bowtie2, SAMtools and Python versions; all
       driver settings; MD5 checksums of the assembly, read files and
       scripts; rotation and overlap check results; insert-size mean and SD;
-      K; N; numbers of properly paired alignments (padded and unpadded);
+      K; N; the origin-check shift; numbers of properly paired alignments
+      (padded, unpadded and origin check);
       and MD5 checksums of the depth and metadata files passed to Part B.
 
   padding_metadata.txt
       Also records the assembly file name, its MD5 checksum and the
       pipeline version.
 
-  <prefix>_coverage_stats.txt and <prefix>_control_comparison.txt (Part B)
+  <prefix>_coverage_stats.txt, <prefix>_control_comparison.txt and
+  <prefix>_end_window_check.txt (Part B)
       End with a "--- Provenance ---" block: producing script and pipeline
       version, date, Python, NumPy, pandas and Matplotlib versions, the
       assembly checksum (from padding_metadata.txt), and MD5 checksums of
@@ -411,7 +431,7 @@ versions are also stored in each BAM header:
 
 DO NOT COMPUTE STATISTICS FROM padded_depth.txt. It still contains the padded
 region and will give skewed values. All reported statistics must come from
-<prefix>_coverage_stats.txt, which is derived from the folded profile.
+<prefix>_coverage_stats.txt, which is derived from the reported profile.
 
 
 ================================================================================
@@ -443,6 +463,41 @@ run on the same reads or with the same filter.
 
 Note that the interior means in this file are NOT the whole-genome means in
 <prefix>_coverage_stats.txt. Report whole-genome statistics in a manuscript.
+
+THE END-WINDOW CHECK (version 4.2+)
+-----------------------------------
+The interior comparison cannot see the first and last K bp, which is exactly
+where padding and folding act. In two Hogna carolinensis specimens assembled
+with NOVOPlasty and rotated to begin at cox1, the folded profile showed
+excess depth over the first few hundred bases (up to 50% above the true
+value at position 1), although the interior comparison passed. Mapping the
+same reads to the unrotated assembly, where that region lies mid-sequence,
+gave a smooth profile. Simulated reads did not reproduce the effect, so it
+arises from features of particular read sets rather than from the folding
+arithmetic, and it cannot be ruled out in advance.
+
+Phase 7 of the driver therefore maps the reads, unpadded, to a copy of the
+assembly starting halfway round the circle, where the original start and
+end lie deep in the interior. 02_fold_and_plot.py compares that profile with
+the folded profile across the end windows (positions N-W+1 to N and 1 to W,
+where W = K, reduced if needed to stay 500 bp from the copy's own ends), in
+200-bp bins. In <prefix>_end_window_check.txt:
+
+  Bins failing   a bin fails if it differs by >= 10% AND >= 3x
+  RESULT         PASSED: the folded profile is reported
+                 FAILED: the end windows of the reported profile are taken
+                 from the origin-check mapping; the folded profile is kept as
+                 <prefix>_folded_depth_before_end_window_correction.txt
+
+The file also gives the mean depth of both profiles across the windows, the
+largest one-base difference, and the step in depth between position N and
+position 1 in each profile. The thresholds are set near the top of
+02_fold_and_plot.py (END_MAX_PCT, END_MIN_ABS, END_BIN_BP). Bins inside
+long tandem repeats can differ slightly between the two mappings, because
+reads there are placed at random among the copies; a failure confined to
+such a region is harmless, since the reported profile then simply uses the
+origin-check values there. The reported profile is always in the assembly's
+own coordinates.
 
 
 ================================================================================
@@ -484,9 +539,20 @@ the current version halts. Restore the file and re-run.
 The pipeline is being run under Windows rather than inside WSL, or Bowtie2 is
 not installed. Part A must run inside WSL.
 
+END-WINDOW CHECK FAILED
+-----------------------
+No action is needed to obtain correct values: the reported profile already
+takes the end windows from the origin-check mapping, and the statistics file
+says so. Look at the failing bins in <prefix>_end_window_check.txt. Failures
+near position 1 or near position K point to the padded junction; failures
+confined to a long tandem repeat reflect random placement of reads among the
+repeat copies. To investigate the junction, run diagnose_padding_artifact.sh
+(below) or view filtered.bam in a genome browser across positions N-200 to
+N+200 of the padded reference.
+
 COVERAGE LOOKS DEPRESSED NEAR POSITION 1
 ----------------------------------------
-Confirm no "-q" MAPQ threshold has been added to the filtering step (see
+Check <prefix>_end_window_check.txt first. Confirm no "-q" MAPQ threshold has been added to the filtering step (see
 section 6.1). If the filter is clean, check <prefix>_control_comparison.txt,
 then run diagnose_padding_artifact.sh from inside the specimen's
 coverage_run/ folder and inspect its report (MAPQ in the padded window,
@@ -523,13 +589,18 @@ METHODS (procedure only)
   - Analysis libraries: NumPy [4], pandas [6], Matplotlib [5]. Software
     versions are in run_provenance.txt (Bowtie2, SAMtools) and in the
     provenance block of <prefix>_coverage_stats.txt (Python libraries).
-  - How the correction was validated (section 8)
+  - How the correction was validated: interior check and end-window check
+    (section 8)
   - A pointer to the supplement containing the commands and scripts
 
 RESULTS (values)
   - K for each specimen                 <prefix>_coverage_stats.txt
   - Mean +/- SD, range, breadth         <prefix>_coverage_stats.txt
-  - Validation outcome                  <prefix>_control_comparison.txt
+  - Validation outcome (interior)       <prefix>_control_comparison.txt
+  - End-window check result            <prefix>_end_window_check.txt
+                                       (and, if it failed, that the end
+                                       windows came from the origin-check
+                                       mapping)
 
 Padding and folding is less familiar than plain linear mapping, so reporting
 the validation outcome pre-empts questions about whether the correction
@@ -606,6 +677,15 @@ the mean, consider also reporting the median depth (from
 ================================================================================
 13. VERSION HISTORY
 ================================================================================
+
+  Version 4.2 (November 2026)
+    - End-window check: Phase 7 of run_pipeline.sh maps the reads to a copy
+      of the assembly starting halfway round the circle
+      (origin_check_depth.txt); 02_fold_and_plot.py compares it with the
+      folded profile across the first and last K bp and, if they disagree,
+      takes the end windows from it (section 8).
+    - The statistics file states the end-window check result.
+    - Profiles that pass the check are unchanged from version 4.1.1.
 
   Version 4.1.1 (November 2026)
     - Reads may be .fastq or .fastq.gz and are used in place (not copied

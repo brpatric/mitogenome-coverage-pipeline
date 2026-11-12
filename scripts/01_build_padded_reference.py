@@ -25,7 +25,7 @@ Usage
 import hashlib
 import sys
 
-__version__ = "4.1.1"   # coverage pipeline version
+__version__ = "4.2"   # coverage pipeline version
 
 # Valid IUPAC nucleotide codes (upper-case; sequence is upper-cased on read).
 VALID_BASES = set("ACGTUNRYSWKMBDHV")
