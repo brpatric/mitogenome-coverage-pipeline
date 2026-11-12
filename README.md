@@ -2,7 +2,7 @@
 
 Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file.
 
-**Version 4.2.1** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
+**Version 4.2.2** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
 ## Why a correction is needed
 
@@ -69,7 +69,7 @@ These are not needed for a routine run; step 3 already runs both checks.
   ```
   python3 03_compare_to_control.py
   ```
-- **Troubleshooting report (`diagnose_padding_artifact.sh`).** Use this if coverage near position 1 looks wrong after checking that no MAPQ filter was added. Run it from inside `coverage_run/`. It reports MAPQ distributions in the padded window, soft-clipping near the junction and a test for reads counted twice:
+- **Padding diagnostic report.** Since version 4.2.2 the driver writes this automatically (Phase 8) as `coverage_run/diagnostic_report_<specimen>_<date>.txt`: MAPQ distributions in the padded window, soft-clipping near the junction and a test for reads counted twice (expected 0; also recorded in `run_provenance.txt`). To produce it for a `coverage_run/` folder from an older run, run the script from inside that folder:
   ```
   cd coverage_run
   bash ../scripts/diagnose_padding_artifact.sh
@@ -84,6 +84,7 @@ These are not needed for a routine run; step 3 already runs both checks.
 | `<prefix>_control_comparison.txt` | Corrected vs unpadded depth across the genome interior (positions *K*+1 to *N*−*K*) | Difference 0% or very close; same minimum at the same position(s) |
 | `<prefix>_linear_coverage.png`, `<prefix>_circular_coverage.png` | Coverage figures (300 dpi) | No dip, spike or step at either end of the genome |
 | `coverage_run/run_provenance.txt` | Date, software versions, settings, input checksums, check results | Keep with the results |
+| `coverage_run/diagnostic_report_<specimen>_<date>.txt` | MAPQ in the padded window, soft-clipping near the junction, double-count test | Reads present in both copies: 0; consult if a check fails |
 
 The interior means in the comparison file leave out *K* bp at each end, so they differ from the whole-genome mean; report the whole-genome values from the statistics file.
 
@@ -117,12 +118,12 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 | `scripts/01_build_padded_reference.py` | Builds the padded reference and its metadata |
 | `scripts/02_fold_and_plot.py` | Folds depth, runs the end-window and interior checks, computes statistics, draws figures |
 | `scripts/03_compare_to_control.py` | Optional standalone control comparison, for profiles folded with earlier versions |
-| `scripts/diagnose_padding_artifact.sh` | Optional troubleshooting report for the padded window |
+| `scripts/diagnose_padding_artifact.sh` | Padding diagnostic report for the padded window; run by the driver (Phase 8) |
 | `docs/Coverage_pipeline_quick_start.docx` | Short quick start guide (three pages) |
-| `docs/Coverage_calculation_and_visualization_protocol_v4.2.1.docx` | Full step-by-step protocol with embedded scripts |
+| `docs/Coverage_calculation_and_visualization_protocol_v4.2.2.docx` | Full step-by-step protocol with embedded scripts |
 | `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.2.1), Results and figure-legend templates, and references |
+| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.2.2), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
 | `CITATION.cff` | Citation information (powers GitHub's “Cite this repository” button) |
 
@@ -134,7 +135,7 @@ The pipeline expects a single circular contig and paired-end reads. The overlap 
 
 If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.2.1. https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.2.2. https://github.com/brpatric/mitogenome-coverage-pipeline
 
 BibTeX:
 
@@ -142,7 +143,7 @@ BibTeX:
 @software{patrick_2026_mitogenome_coverage,
   author  = {Patrick, L. Brian},
   title   = {Mitogenome Coverage Pipeline},
-  version = {4.2.1},
+  version = {4.2.2},
   year    = {2026},
   url     = {https://github.com/brpatric/mitogenome-coverage-pipeline}
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.2.2 (November 2026)
+
+- `run_pipeline.sh` runs `diagnose_padding_artifact.sh` automatically at the end of every run (Phase 8), writing `diagnostic_report_<specimen>_<date>.txt` to `coverage_run/` and recording the double-count result in `run_provenance.txt`. A problem in this report-only step never stops the run.
+- `diagnose_padding_artifact.sh` gains a `--from-driver` mode (report only). Run by hand, it behaves as before and also rebuilds `prelim_filtered_depth.txt`.
+- Computed values are unchanged from 4.2.1.
+
 ## 4.2.1 (November 2026)
 
 - `run_pipeline.sh` now requires an answer on whether the assembly was rotated: new setting `ROTATED` ("yes"/"no"). If it is empty, the driver asks at the start (and, if rotated, asks for the unrotated file); a run with no terminal stops with a message instead of guessing.

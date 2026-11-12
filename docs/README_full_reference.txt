@@ -6,7 +6,7 @@ Per-base coverage calculation and visualization for circularized mitochondrial
 genomes assembled from paired-end Illumina data, with correction for the
 coverage artifact introduced at the circular origin.
 
-Version 4.2.1 (November 2026). See section 13 for the version history.
+Version 4.2.2 (November 2026). See section 13 for the version history.
 
 
 ================================================================================
@@ -134,8 +134,9 @@ under Windows Python/IDLE rather than inside WSL.
 ================================================================================
 
   run_pipeline.sh                  >>> RUN THIS (in WSL)
-        Driver script. Runs Phases 0-7: checks, mapping, filtering, depth,
-        the unpadded control depth and the origin-check depth.
+        Driver script. Runs Phases 0-8: checks, mapping, filtering, depth,
+        the unpadded control depth, the origin-check depth and the
+        padding diagnostic report.
 
   00_check_terminal_overlap.py     called automatically by run_pipeline.sh
         Verifies the assembly has no duplicated overlap at the circular
@@ -153,9 +154,10 @@ under Windows Python/IDLE rather than inside WSL.
         original assembler output. Run by the driver (Phase 0) for a
         rotated assembly, or by hand (section 5).
 
-  diagnose_padding_artifact.sh     optional (in WSL)
-        Troubleshooting only: writes a diagnostic report on the padded
-        window (MAPQ, soft-clipping, double-count test). See section 9.
+  diagnose_padding_artifact.sh     called automatically by run_pipeline.sh
+        Writes a diagnostic report on the padded window (MAPQ,
+        soft-clipping, double-count test) in Phase 8. Can also be run by
+        hand on an older coverage_run/ folder (section 9).
 
   03_compare_to_control.py         optional (in IDLE or WSL)
         Standalone version of the control comparison now built into
@@ -169,7 +171,7 @@ sit in the SAME FOLDER as run_pipeline.sh, as must verify_rotation.py if the
 assembly was rotated. The driver stops with an explicit error if a required
 script is missing, rather than silently skipping it.
 
-Every script carries a version number (pipeline version 4.2.1), which it
+Every script carries a version number (pipeline version 4.2.2), which it
 prints or writes into its output; see section 7, PROVENANCE.
 
 
@@ -319,6 +321,12 @@ WHAT THE DRIVER DOES
             check (section 8). The shift is recorded in padding_metadata.txt
             as origin_check_shift_S.
 
+  Phase 8   Writes the padding diagnostic report
+            (diagnose_padding_artifact.sh): MAPQ distributions in the
+            padded window, soft-clipping near the junction, and a test for
+            reads counted twice. A problem in this report never stops the
+            run; the result is recorded in run_provenance.txt.
+
 BOWTIE2 MUST BE RUN IN --local MODE
 -----------------------------------
 The default end-to-end mode requires the entire read to align, which is
@@ -386,6 +394,8 @@ FROM PART A, IN coverage_run/
                           Overlap check on the unrotated assembler output
                           (rotated assemblies)
   overlap_check.log       Overlap check on assembly.fasta
+  diagnostic_report_<specimen>_<date>.txt
+                          Padding diagnostic report (Phase 8)
   filtered.bam            Filtered alignments, retained for diagnostics
   prelim_filtered_depth.txt
                           Unpadded control depth (N rows) - used by Part B
@@ -559,21 +569,22 @@ takes the end windows from the origin-check mapping, and the statistics file
 says so. Look at the failing bins in <prefix>_end_window_check.txt. Failures
 near position 1 or near position K point to the padded junction; failures
 confined to a long tandem repeat reflect random placement of reads among the
-repeat copies. To investigate the junction, run diagnose_padding_artifact.sh
-(below) or view filtered.bam in a genome browser across positions N-200 to
+repeat copies. To investigate the junction, read the diagnostic report in
+coverage_run/ (below) or view filtered.bam in a genome browser across positions N-200 to
 N+200 of the padded reference.
 
 COVERAGE LOOKS DEPRESSED NEAR POSITION 1
 ----------------------------------------
 Check <prefix>_end_window_check.txt first. Confirm no "-q" MAPQ threshold has been added to the filtering step (see
 section 6.1). If the filter is clean, check <prefix>_control_comparison.txt,
-then run diagnose_padding_artifact.sh from inside the specimen's
-coverage_run/ folder and inspect its report (MAPQ in the padded window,
-soft-clipping near the junction, and the double-count test):
+then inspect coverage_run/diagnostic_report_<specimen>_<date>.txt (MAPQ in
+the padded window, soft-clipping near the junction, and the double-count
+test, which should report 0 reads in both copies). The driver writes it in
+Phase 8; for a coverage_run/ folder from a run before version 4.2.2, produce
+it by hand:
 
     cd /mnt/c/path/to/<specimen>/coverage_run
-    cp ../scripts/diagnose_padding_artifact.sh .
-    bash diagnose_padding_artifact.sh
+    bash ../scripts/diagnose_padding_artifact.sh
 
 02_fold_and_plot.py REPORTS MISSING INPUT FILES
 -----------------------------------------------
@@ -690,6 +701,12 @@ the mean, consider also reporting the median depth (from
 ================================================================================
 13. VERSION HISTORY
 ================================================================================
+
+  Version 4.2.2 (November 2026)
+    - run_pipeline.sh runs diagnose_padding_artifact.sh automatically
+      (Phase 8) and records the double-count result in run_provenance.txt.
+      The script can still be run by hand on older coverage_run/ folders.
+      Computed values are unchanged from 4.2.1.
 
   Version 4.2.1 (November 2026)
     - run_pipeline.sh requires an answer on whether the assembly was

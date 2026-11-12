@@ -2,18 +2,18 @@
 # =============================================================================
 # diagnose_padding_artifact.sh
 #
-# OPTIONAL troubleshooting tool. Use it if the finished coverage profile
-# shows an unexplained dip or spike within the first K bases. It reports
-# MAPQ distributions, soft-clipping and a double-count test for the padded
-# window.
+# Reports MAPQ distributions, soft-clipping and a double-count test for the
+# padded window, written to diagnostic_report_<specimen>_<date>.txt.
 #
-# Since pipeline version 4, run_pipeline.sh builds the unpadded control
-# depth file (prelim_filtered_depth.txt) itself, so this script is no longer
-# needed for routine validation. It rebuilds that file anyway (same
-# commands, same result).
+# Since pipeline version 4.2.2, run_pipeline.sh runs this automatically at
+# the end of every run (Phase 8, with --from-driver), so you do not need to
+# run it yourself.
 #
-# HOW TO RUN
-# ----------
+# RUNNING IT BY HAND (e.g. on a coverage_run/ folder from an older run)
+# --------------------------------------------------------------------
+# Without --from-driver it also rebuilds the unpadded control depth file
+# (prelim_filtered_depth.txt; same commands as the driver, same result).
+#
 #   1. Copy this file into a specimen's  coverage_run/  folder
 #      (the folder containing padded_depth.txt, filtered.bam, etc.)
 #   2. In WSL/Ubuntu:
@@ -26,7 +26,9 @@
 # Requires: samtools (already needed by the main pipeline)
 # =============================================================================
 set -uo pipefail
-PIPELINE_VERSION="4.2.1"
+PIPELINE_VERSION="4.2.2"
+FROM_DRIVER=0
+[ "${1:-}" = "--from-driver" ] && FROM_DRIVER=1
 
 SPECIMEN="$(basename "$(dirname "$(pwd)")")"
 STAMP="$(date +%Y%m%d)"
@@ -36,7 +38,9 @@ REPORT="diagnostic_report_${SPECIMEN}_${STAMP}.txt"
 # Pre-flight: make sure we are in the right folder and have what we need
 # ----------------------------------------------------------------------------
 missing=0
-for f in padded_depth.txt padding_metadata.txt filtered.bam prelim.sorted.bam; do
+NEEDED="padded_depth.txt padding_metadata.txt filtered.bam"
+[ "$FROM_DRIVER" -eq 0 ] && NEEDED="$NEEDED prelim.sorted.bam"
+for f in $NEEDED; do
     if [ ! -f "$f" ]; then
         echo "MISSING: $f"
         missing=1
@@ -144,8 +148,14 @@ echo "END OF DIAGNOSTIC"
 echo "============================================================"
 } 2>&1 | tee "$REPORT"
 
+if [ "$FROM_DRIVER" -eq 1 ]; then
+    echo ""
+    echo "Diagnostic report written to $REPORT"
+    exit 0
+fi
+
 # ----------------------------------------------------------------------------
-# Unpadded control depth file -- the decisive comparison
+# Unpadded control depth file (by-hand runs only; the driver builds it itself)
 # ----------------------------------------------------------------------------
 echo ""
 echo "Building unpadded control depth file (this may take a minute)..."

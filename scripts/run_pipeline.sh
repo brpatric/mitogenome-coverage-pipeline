@@ -7,13 +7,14 @@
 # (Ubuntu). See README.txt for the full step-by-step explanation of what
 # each phase does and why.
 #
-# Pipeline version 4.2.1. Phase 0 asks whether the assembly was rotated
+# Pipeline version 4.2.2. Phase 0 asks whether the assembly was rotated
 # (or reads ROTATED below); if so, it runs the overlap check on the
 # unrotated assembler output and verifies the rotation, and stops if either
 # fails. Phase 6 builds the unpadded control depth file
 # (prelim_filtered_depth.txt) and Phase 7 maps the reads to a copy of the
 # assembly starting halfway round the circle (origin_check_depth.txt), used
-# by 02_fold_and_plot.py for the interior and end-window checks. Reads may
+# by 02_fold_and_plot.py for the interior and end-window checks. Phase 8
+# writes the padding diagnostic report (diagnose_padding_artifact.sh). Reads may
 # be .fastq or .fastq.gz and are used in place (not copied); file settings
 # accept names, relative paths or absolute paths. Writes run_provenance.txt
 # (date, pipeline and tool versions, settings, input checksums and check
@@ -47,7 +48,7 @@ ORIGINAL_ASSEMBLY=""           # if ROTATED="yes": the unrotated assembler
                                # Leave empty to be asked.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # -----------------------------------------------------------------------------
-PIPELINE_VERSION="4.2.1"
+PIPELINE_VERSION="4.2.2"
 
 # ------------------- rotated or not? (answer required) ----------------------
 norm_yesno() { case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
@@ -147,7 +148,7 @@ for f in "$ASSEMBLY_PATH" "$R1_PATH" "$R2_PATH" ${ORIGINAL_PATH:+"$ORIGINAL_PATH
 done
 echo ""
 echo "[Scripts]"
-for f in 00_check_terminal_overlap.py 01_build_padded_reference.py verify_rotation.py 02_fold_and_plot.py; do
+for f in 00_check_terminal_overlap.py 01_build_padded_reference.py verify_rotation.py 02_fold_and_plot.py diagnose_padding_artifact.sh; do
     if [ -f "$SCRIPT_DIR/$f" ]; then
         printf "%-30s md5 %s\n" "$f" "$(md5sum "$SCRIPT_DIR/$f" | cut -d' ' -f1)"
     fi
@@ -162,7 +163,8 @@ echo "PHASE 0: Checks on the assembly"
 echo "============================================================"
 OVERLAP_SCRIPT="$SCRIPT_DIR/00_check_terminal_overlap.py"
 ROT_SCRIPT="$SCRIPT_DIR/verify_rotation.py"
-for f in "$OVERLAP_SCRIPT" ${ORIGINAL_PATH:+"$ROT_SCRIPT"}; do
+DIAG_SCRIPT="$SCRIPT_DIR/diagnose_padding_artifact.sh"
+for f in "$OVERLAP_SCRIPT" "$SCRIPT_DIR/01_build_padded_reference.py" "$DIAG_SCRIPT" ${ORIGINAL_PATH:+"$ROT_SCRIPT"}; do
     if [ ! -f "$f" ]; then
         echo "!! ERROR: required script not found:"
         echo "!!   $f"
@@ -335,6 +337,26 @@ if [ "$N_ORIGIN" != "$N_EXPECTED" ]; then
     echo "!! WARNING: origin_check_depth.txt has $N_ORIGIN rows; expected N = $N_EXPECTED."
 fi
 
+echo ""
+echo "============================================================"
+echo "PHASE 8: Padding diagnostic report"
+echo "============================================================"
+# MAPQ in the padded window, soft-clipping near the junction, and the
+# double-count test, written to diagnostic_report_<specimen>_<date>.txt.
+# A problem in this report-only step never stops the run.
+set +e
+bash "$DIAG_SCRIPT" --from-driver
+DIAG_RC=$?
+set -e
+DIAG_REPORT=$(ls -t diagnostic_report_*.txt 2>/dev/null | head -1)
+if [ "$DIAG_RC" -eq 0 ] && [ -n "$DIAG_REPORT" ]; then
+    DUPS=$(grep "reads present in BOTH copies" "$DIAG_REPORT" | sed 's/.*: *//')
+    echo "Diagnostic report    : $DIAG_REPORT (reads in both copies of the window: ${DUPS:-?})" >> "$PROV"
+else
+    echo "!! WARNING: the diagnostic report did not complete (exit code $DIAG_RC)."
+    echo "Diagnostic report    : did not complete (exit code $DIAG_RC)" >> "$PROV"
+fi
+
 {
 echo "Genome length N      : $N_EXPECTED bp"
 echo "Origin-check shift S : $S bp (origin-check assembly starts at position $((S + 1)))"
@@ -357,6 +379,7 @@ echo "  - prelim_filtered_depth.txt   (unpadded control depth, length N)"
 echo "  - origin_check_depth.txt      (origin-check depth, length N)"
 echo "  - overlap_check.log           (Phase 0 report; also"
 echo "    overlap_check_original.log and rotation_check.log if rotated)"
+echo "  - diagnostic_report_*.txt     (Phase 8 padding diagnostic report)"
 echo "  - run_provenance.txt          (versions, settings, checksums, results)"
 echo "  - prelim.stats.txt            (insert size stats used to pick K)"
 echo ""
