@@ -2,7 +2,7 @@
 
 Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file.
 
-**Version 4.4** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
+**Version 4.5** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
 ## Why a correction is needed
 
@@ -60,11 +60,11 @@ PLOT_TITLE="Per-base Read Coverage"   # title on the coverage figures
 ```
 bash scripts/run_pipeline.sh
 ```
-The mapping files land in `coverage_run/`, and the statistics, figures and check results in `coverage_results/` (Phase 9). That is the whole procedure. The driver needs NumPy, pandas and Matplotlib installed in WSL for this step; if they are missing, it finishes the mapping, says so, and you can run `02_fold_and_plot.py` separately.
+The mapping files land in `coverage_run/`, and the statistics, figures, check results and report in `coverage_results/` (Phase 9). That is the whole procedure. The driver needs NumPy, pandas and Matplotlib installed in WSL for this step; if they are missing, it finishes the mapping, says so, and you can run `02_fold_and_plot.py` separately.
 
 **In two parts.** Without `02_fold_and_plot.py` in `scripts/`, the driver stops after the mapping. Then:
 
-1. Put `02_fold_and_plot.py` in any folder (WSL or Windows), and copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to it.
+1. Put `02_fold_and_plot.py` in any folder (WSL or Windows), and copy `padded_depth.txt`, `padding_metadata.txt`, `prelim_filtered_depth.txt` and `origin_check_depth.txt` from `coverage_run/` next to it. Copy `run_provenance.txt` too if you want the mapping details (software versions, insert size, rotation and overlap checks) in the report.
 2. Set `PLOT_TITLE` near the top of `02_fold_and_plot.py`, then run it (F5 in IDLE, or from the shell) and enter an output prefix (for example `Genus_species_specimenID`) when asked:
    ```
    python3 02_fold_and_plot.py
@@ -91,7 +91,8 @@ When the driver runs `02_fold_and_plot.py`, the `<prefix>_` files below are in `
 
 | File | Contents | What to look for |
 | --- | --- | --- |
-| `<prefix>_coverage_stats.txt` | Genome length, *K*, mean, SD, minimum, maximum, breadth of coverage, end-window check result | The values to report |
+| `<prefix>_report.txt` | **Everything to report in the Methods and Results**: software versions, rotation and overlap checks, insert size, *K*, breadth, mean ± SD, median, minimum and maximum (with positions), both check results, and draft Methods and Results sentences built from them | Start here when writing |
+| `<prefix>_coverage_stats.txt` | Genome length, *K*, mean, SD, minimum, maximum, breadth of coverage, end-window check result | Summary statistics |
 | `<prefix>_end_window_check.txt` | Folded vs origin-check depth across the end windows (last and first *K* bp), in 200-bp bins | PASSED; if FAILED, the reported profile's end windows come from the origin-check mapping |
 | `<prefix>_control_comparison.txt` | Corrected vs unpadded depth across the genome interior (positions *K*+1 to *N*−*K*) | Difference 0% or very close; same minimum at the same position(s) |
 | `<prefix>_linear_coverage.png`, `<prefix>_circular_coverage.png` | Coverage figures (300 dpi) | No dip, spike or step at either end of the genome |
@@ -127,13 +128,13 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 | `scripts/run_pipeline.sh` | Driver: checks, mapping, padding, filtering, depth, diagnostic report, control and origin-check depth, provenance record; runs `02_fold_and_plot.py` if present |
 | `scripts/00_check_terminal_overlap.py` | Checks for leftover circularization overlap and invalid characters; with `--verify-rotation`, confirms a rotated assembly is an exact cyclic shift of the original |
 | `scripts/01_build_padded_reference.py` | Builds the padded reference and its metadata; with `--diagnose`, writes the padding diagnostic report |
-| `scripts/02_fold_and_plot.py` | Folds depth, runs the end-window and interior checks, computes statistics, draws figures; run by the driver (Phase 9) or by hand |
+| `scripts/02_fold_and_plot.py` | Folds depth, runs the end-window and interior checks, computes statistics, draws figures and writes the report; run by the driver (Phase 9) or by hand |
 | `scripts/03_compare_to_control.py` | Optional standalone control comparison, for profiles folded with earlier versions |
 | `docs/Coverage_pipeline_quick_start.docx` | Short quick start guide (four pages) |
-| `docs/Coverage_calculation_and_visualization_protocol_v4.4.docx` | Full step-by-step protocol with embedded scripts |
+| `docs/Coverage_calculation_and_visualization_protocol_v4.5.docx` | Full step-by-step protocol with embedded scripts |
 | `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
 | `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.4), Results and figure-legend templates, and references |
+| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.5), Results and figure-legend templates, and references |
 | `CHANGELOG.md` | Version history |
 | `CITATION.cff` | Citation information (powers GitHub's “Cite this repository” button) |
 
@@ -145,7 +146,7 @@ The pipeline expects a single circular contig and paired-end reads. The overlap 
 
 If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.4. https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.5. https://github.com/brpatric/mitogenome-coverage-pipeline
 
 BibTeX:
 
@@ -153,7 +154,7 @@ BibTeX:
 @software{patrick_2026_mitogenome_coverage,
   author  = {Patrick, L. Brian},
   title   = {Mitogenome Coverage Pipeline},
-  version = {4.4},
+  version = {4.5},
   year    = {2026},
   url     = {https://github.com/brpatric/mitogenome-coverage-pipeline}
 }
@@ -161,7 +162,7 @@ BibTeX:
 
 GitHub's **Cite this repository** button (in the right-hand panel of the repository page) gives the same citation in APA and BibTeX formats, from `CITATION.cff`.
 
-Please also cite the tools the pipeline runs: Bowtie2 (Langmead & Salzberg 2012), SAMtools (Danecek et al. 2021), NumPy (Harris et al. 2020), pandas (McKinney 2010) and Matplotlib (Hunter 2007); see References below. A ready-made Methods paragraph with these citations is in `docs/Coverage_Methods.docx`.
+Please also cite the tools the pipeline runs: Bowtie2 (Langmead & Salzberg 2012), SAMtools (Danecek et al. 2021), NumPy (Harris et al. 2020), pandas (McKinney 2010) and Matplotlib (Hunter 2007); see References below. A ready-made Methods paragraph with these citations is in `docs/Coverage_Methods.docx`, and each run's `<prefix>_report.txt` gives draft Methods and Results text filled in with that run's values.
 
 ## References
 

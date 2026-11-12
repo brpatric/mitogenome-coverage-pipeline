@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.5 (November 2026)
+
+- `02_fold_and_plot.py` writes `<prefix>_report.txt`: every value to report in the Methods and Results (software versions, rotation and overlap checks, insert size, *K*, breadth, mean ± SD, median, minimum and maximum with positions, alignment counts, both check results) and draft Methods and Results sentences filled in with them. Mapping details come from `run_provenance.txt` when it is with the inputs (always, in a one-command run).
+- `run_pipeline.sh` runs Phase 9 after recording the alignment counts, so the report includes them, and lists the report in its final message.
+- Computed values are unchanged from 4.4.
+
 ## 4.4 (November 2026)
 
 - `run_pipeline.sh` runs `02_fold_and_plot.py` as Phase 9 if it sits next to the driver, writing the statistics, figures and check results to `coverage_results/` in the specimen folder. New settings `RESULTS_DIR`, `PREFIX` (default: the specimen folder's name) and `PLOT_TITLE`. Both check results are added to `run_provenance.txt`. If `02` fails (for example, a missing Python package), the mapping outputs are kept and the driver says so.

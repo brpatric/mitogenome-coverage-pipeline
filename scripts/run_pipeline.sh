@@ -7,7 +7,7 @@
 # (Ubuntu). See README.txt for the full step-by-step explanation of what
 # each phase does and why.
 #
-# Pipeline version 4.4. Phase 0 asks whether the assembly was rotated
+# Pipeline version 4.5. Phase 0 asks whether the assembly was rotated
 # (or reads ROTATED below); if so, it runs the overlap check on the
 # unrotated assembler output and verifies the rotation, and stops if either
 # fails. Phase 6 writes the padding diagnostic report (01_build_padded_
@@ -16,7 +16,8 @@
 # assembly starting halfway round the circle (origin_check_depth.txt), used
 # by 02_fold_and_plot.py for the interior and end-window checks. If
 # 02_fold_and_plot.py sits next to this script, Phase 9 runs it and writes
-# the statistics, figures and check results to RESULTS_DIR. Reads may
+# the statistics, figures, check results and the report (everything to put
+# in the Methods and Results) to RESULTS_DIR. Reads may
 # be .fastq or .fastq.gz and are used in place (not copied); file settings
 # accept names, relative paths or absolute paths. Writes run_provenance.txt
 # (date, pipeline and tool versions, settings, input checksums and check
@@ -56,7 +57,7 @@ ORIGINAL_ASSEMBLY=""           # if ROTATED="yes": the unrotated assembler
                                # Leave empty to be asked.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # -----------------------------------------------------------------------------
-PIPELINE_VERSION="4.4"
+PIPELINE_VERSION="4.5"
 
 # ------------------- rotated or not? (answer required) ----------------------
 norm_yesno() { case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
@@ -374,6 +375,17 @@ if [ "$N_ORIGIN" != "$N_EXPECTED" ]; then
     echo "!! WARNING: origin_check_depth.txt has $N_ORIGIN rows; expected N = $N_EXPECTED."
 fi
 
+{
+echo "Genome length N      : $N_EXPECTED bp"
+echo "Origin-check shift S : $S bp (origin-check assembly starts at position $((S + 1)))"
+echo "Properly paired alignments (padded)   : $(samtools view -c filtered.bam)"
+echo "Properly paired alignments (unpadded) : $(samtools view -c prelim_filtered.bam)"
+echo "Properly paired alignments (origin check) : $(samtools view -c origin_check_filtered.bam)"
+echo ""
+echo "[Output checksums (MD5)]"
+md5sum padded_depth.txt padding_metadata.txt prelim_filtered_depth.txt origin_check_depth.txt | awk '{printf "%-26s : %s\n", $2, $1}'
+} >> "$PROV"
+
 FOLD_RC=""
 if [ -f "$FOLD_SCRIPT" ]; then
     echo ""
@@ -387,7 +399,9 @@ if [ -f "$FOLD_SCRIPT" ]; then
     set -e
     STATS="$RESULTS_PATH/${PREFIX}_coverage_stats.txt"
     if [ "$FOLD_RC" -eq 0 ] && [ -f "$STATS" ]; then
+        { echo ""; echo "[Results (Phase 9)]"; } >> "$PROV"
         echo "Results folder       : $RESULTS_PATH" >> "$PROV"
+        echo "Report               : ${PREFIX}_report.txt" >> "$PROV"
         echo "End-window check     : $(grep '^End-window check:' "$STATS" | sed 's/^End-window check: //')" >> "$PROV"
         CMP="$RESULTS_PATH/${PREFIX}_control_comparison.txt"
         [ -f "$CMP" ] && echo "Interior check       : $(grep '^Difference' "$CMP" | sed 's/.*: //'); same minimum: $(grep '^Same minimum' "$CMP" | sed 's/.*: //')" >> "$PROV"
@@ -401,14 +415,6 @@ if [ -f "$FOLD_SCRIPT" ]; then
 fi
 
 {
-echo "Genome length N      : $N_EXPECTED bp"
-echo "Origin-check shift S : $S bp (origin-check assembly starts at position $((S + 1)))"
-echo "Properly paired alignments (padded)   : $(samtools view -c filtered.bam)"
-echo "Properly paired alignments (unpadded) : $(samtools view -c prelim_filtered.bam)"
-echo "Properly paired alignments (origin check) : $(samtools view -c origin_check_filtered.bam)"
-echo ""
-echo "[Output checksums (MD5)]"
-md5sum padded_depth.txt padding_metadata.txt prelim_filtered_depth.txt origin_check_depth.txt | awk '{printf "%-26s : %s\n", $2, $1}'
 echo ""
 echo "Run finished       : $(date '+%Y-%m-%d %H:%M:%S %Z')"
 } >> "$PROV"
@@ -428,7 +434,8 @@ echo "  - prelim.stats.txt            (insert size stats used to pick K)"
 echo ""
 if [ "$FOLD_RC" = "0" ]; then
     echo "Statistics, figures and check results: $RESULTS_PATH/"
-    echo "  - ${PREFIX}_coverage_stats.txt      (values to report)"
+    echo "  - ${PREFIX}_report.txt              (everything to report, with draft text)"
+    echo "  - ${PREFIX}_coverage_stats.txt      (summary statistics)"
     echo "  - ${PREFIX}_end_window_check.txt    ${PREFIX}_control_comparison.txt"
     echo "  - ${PREFIX}_linear_coverage.png     ${PREFIX}_circular_coverage.png"
 else

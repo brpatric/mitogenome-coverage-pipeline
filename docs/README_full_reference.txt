@@ -6,7 +6,7 @@ Per-base coverage calculation and visualization for circularized mitochondrial
 genomes assembled from paired-end Illumina data, with correction for the
 coverage artifact introduced at the circular origin.
 
-Version 4.4 (November 2026). See section 13 for the version history.
+Version 4.5 (November 2026). See section 13 for the version history.
 
 
 ================================================================================
@@ -171,7 +171,7 @@ driver needs; add 02_fold_and_plot.py to the same folder to run everything
 in one command. The driver stops with an explicit error if a required
 script is missing, rather than silently skipping it.
 
-Every script carries a version number (pipeline version 4.4), which it
+Every script carries a version number (pipeline version 4.5), which it
 prints or writes into its output; see section 7, PROVENANCE.
 
 
@@ -379,6 +379,10 @@ Copy these four files from coverage_run/ into the same folder as
     prelim_filtered_depth.txt   (needed for the interior check)
     origin_check_depth.txt      (needed for the end-window check)
 
+and, optionally, run_provenance.txt, which adds the mapping details
+(software versions, insert size, rotation and overlap checks, alignment
+counts) to the report.
+
 Open the script and set:
 
     PLOT_TITLE = "Per-base Read Coverage: Genus species"
@@ -432,6 +436,13 @@ FROM PART A, IN coverage_run/
 FROM PART B (in coverage_results/ when run by the driver; otherwise next to
 02_fold_and_plot.py)
 --------------------------------------------------------------------------
+  <prefix>_report.txt             EVERYTHING TO REPORT in the Methods and
+                                  Results: software versions, rotation and
+                                  overlap checks, insert size, K, breadth,
+                                  mean +/- SD, median, minimum and maximum
+                                  (with positions), both check results, and
+                                  draft Methods and Results sentences filled
+                                  in with these values (section 10)
   <prefix>_folded_depth.txt       Reported per-base depth in the assembly's
                                   coordinates
   <prefix>_coverage_stats.txt     MEAN, SD, MIN, MAX, BREADTH - report these;
@@ -464,8 +475,8 @@ Each run documents how it was produced:
       Also records the assembly file name, its MD5 checksum and the
       pipeline version.
 
-  <prefix>_coverage_stats.txt, <prefix>_control_comparison.txt and
-  <prefix>_end_window_check.txt (Part B)
+  <prefix>_coverage_stats.txt, <prefix>_control_comparison.txt,
+  <prefix>_end_window_check.txt and <prefix>_report.txt (Part B)
       End with a "--- Provenance ---" block: producing script and pipeline
       version, date, Python, NumPy, pandas and Matplotlib versions, the
       assembly checksum (from padding_metadata.txt), and MD5 checksums of
@@ -624,8 +635,12 @@ files next to the script.
 10. REPORTING IN A MANUSCRIPT
 ================================================================================
 
-A Methods/Results template (Coverage_Methods.docx) accompanies this
-package. Keep the procedure in the Methods and the numbers in the Results.
+Each run's <prefix>_report.txt collects every value listed below in one
+file, with draft Methods and Results sentences built from them; check the
+draft against the values and add the citations. A Methods/Results template
+(Coverage_Methods.docx), with references and figure legend, also
+accompanies this package. Keep the procedure in the Methods and the numbers
+in the Results.
 
 METHODS (procedure only)
   - Overlap check before rotation, and rotation verification, if the
@@ -728,6 +743,13 @@ the mean, consider also reporting the median depth (from
 ================================================================================
 13. VERSION HISTORY
 ================================================================================
+
+  Version 4.5 (November 2026)
+    - 02_fold_and_plot.py writes <prefix>_report.txt: every value for the
+      Methods and Results (from this run and, if present, run_provenance.txt)
+      and draft Methods and Results sentences. In a one-command run Phase 9
+      now runs after the alignment counts are recorded, so the report
+      includes them. Computed values are unchanged from 4.4.
 
   Version 4.4 (November 2026)
     - run_pipeline.sh runs 02_fold_and_plot.py (Phase 9) if it sits next to

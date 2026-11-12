@@ -55,6 +55,7 @@ Two ways:
     padding_metadata.txt        required
     prelim_filtered_depth.txt   optional, needed for the interior check
     origin_check_depth.txt      optional, needed for the end-window check
+    run_provenance.txt          optional, adds the mapping details to the report
 When you run it, the program will ask you to type an output prefix (e.g.
 MySpecies_sample01) -- this is used to name all the output files.
 
@@ -74,6 +75,11 @@ Outputs (by hand: next to this script; from the driver: coverage_results/)
     <prefix>_folded_depth_before_end_window_correction.txt
                                      the folded profile, kept for the record
                                      (only if the end-window check failed)
+    <prefix>_report.txt              everything to report in the Methods and
+                                     Results, with draft sentences. Mapping
+                                     details (software versions, insert size,
+                                     rotation and overlap checks) come from
+                                     run_provenance.txt if it is with the inputs
 
 03_compare_to_control.py produces the same interior comparison as a
 standalone step, for depth profiles folded with an earlier version of this
@@ -98,7 +104,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-__version__ = "4.4"   # coverage pipeline version
+__version__ = "4.5"   # coverage pipeline version
 
 # ============================= EDIT THESE ===================================
 PLOT_TITLE = "Per-base Read Coverage"     # set to the full title you want shown, e.g. "Per-base Read Coverage: Genus species"
@@ -123,6 +129,7 @@ DEPTH_FILENAME = "padded_depth.txt"
 METADATA_FILENAME = "padding_metadata.txt"
 CONTROL_FILENAME = "prelim_filtered_depth.txt"
 ORIGIN_FILENAME = "origin_check_depth.txt"
+PROVENANCE_FILENAME = "run_provenance.txt"   # optional: mapping details for the report
 
 
 def read_metadata(path):
@@ -326,7 +333,198 @@ def end_window_check(folded, origin_shifted, n, k, s):
         lines.append("mapping, where this region lies far from any sequence end. The")
         lines.append("folded profile is kept as")
         lines.append("<prefix>_folded_depth_before_end_window_correction.txt.")
-    return lines, passed, corrected
+    info = {"w": w, "passed": passed, "n_failed": len(failed_bins),
+            "worst": worst, "f_mean": f_mean, "o_mean": o_mean,
+            "step_f": step_f, "step_o": step_o, "s": s}
+    return lines, passed, corrected, info
+
+
+def read_provenance(path):
+    """Key/value lines of run_provenance.txt ("Key : value")."""
+    prov = {}
+    if not os.path.isfile(path):
+        return prov
+    with open(path) as fh:
+        for line in fh:
+            if " : " in line:
+                key, val = line.split(" : ", 1)
+                prov.setdefault(key.strip(), val.strip())
+    return prov
+
+
+def build_report(prefix, profile, folded, control, n, k, meta, prov, end_info,
+                 profile_note):
+    """Everything to report, in one place: the Methods values, the Results
+    values, and draft sentences built from them."""
+    P = lambda key, default="(not recorded)": prov.get(key, default)
+    have_prov = bool(prov)
+    mean, sd = float(np.mean(profile)), float(np.std(profile))
+    median = float(np.median(profile))
+    dmin, dmax = int(np.min(profile)), int(np.max(profile))
+    breadth = int(np.sum(profile > 0))
+    pos_min = np.flatnonzero(profile == dmin) + 1
+    pos_max = np.flatnonzero(profile == dmax) + 1
+
+    def ranges(pos):
+        """1-based positions as compact ranges, e.g. 4495-4505, 7001."""
+        if len(pos) == 0:
+            return "-"
+        out, start, prev = [], pos[0], pos[0]
+        for p in list(pos[1:]) + [None]:
+            if p is not None and p == prev + 1:
+                prev = p
+                continue
+            out.append(f"{start}" if start == prev else f"{start}-{prev}")
+            if p is not None:
+                start = prev = p
+        shown = ", ".join(out[:5])
+        return shown + (f" (+{len(out) - 5} more)" if len(out) > 5 else "")
+
+    rotated = P("ROTATED", "")
+    L = ["=" * 72,
+         f"COVERAGE REPORT: {prefix}",
+         f"Everything to report in the Methods and Results, from this run.",
+         f"Produced by 02_fold_and_plot.py (pipeline version {__version__}), "
+         f"{datetime.now():%Y-%m-%d %H:%M}",
+         "=" * 72, ""]
+    if not have_prov:
+        L += ["NOTE: run_provenance.txt was not found with the input files, so the",
+              "mapping details (software versions, insert size, rotation and overlap",
+              "checks, alignment counts) are missing below. To include them, copy",
+              "coverage_run/run_provenance.txt next to the other input files and run",
+              "this again. (A one-command run with run_pipeline.sh includes them.)", ""]
+
+    L += ["METHODS (procedure and software)",
+          "-" * 72,
+          f"Pipeline                    : Mitogenome Coverage Pipeline, version "
+          f"{P('Pipeline version', __version__)}",
+          f"Assembly                    : {meta.get('original_header', '?')} ({n} bp)",
+          f"Rotated after assembly      : {rotated or '(not recorded)'}",
+          f"Overlap check, unrotated    : {P('Overlap (unrotated)', 'not run (assembly not rotated)' if rotated == 'no' else '(not recorded)')}",
+          f"Rotation check              : {P('Rotation check')}",
+          f"Overlap check, as mapped    : {P('Overlap check')}",
+          f"Bowtie2                     : {P('bowtie2')} (--local mode)",
+          f"SAMtools                    : {P('samtools')}",
+          f"Alignment filter            : properly paired only (samtools view -f 2), no MAPQ threshold",
+          f"Insert size (mean, SD)      : {P('Insert size mean')} bp, {P('Insert size SD')} bp",
+          f"Padding length K            : {k} bp (mean insert + 4 SD, minimum 300 bp)",
+          f"Python                      : {platform.python_version()}",
+          f"NumPy / pandas / Matplotlib : {np.__version__} / {pd.__version__} / {matplotlib.__version__}",
+          f"End-window check mapping    : assembly rotated by S = {meta.get('origin_check_shift_S', '?')} bp (half its length)",
+          ""]
+
+    L += ["RESULTS (values)",
+          "-" * 72,
+          f"Genome length N             : {n} bp",
+          f"Padding length K            : {k} bp",
+          f"Breadth of coverage         : {breadth} bp ({100 * breadth / n:.2f}%)",
+          f"Mean depth +/- SD           : {mean:.1f} +/- {sd:.1f}x   (unrounded {mean:.4f} +/- {sd:.4f})",
+          f"Median depth                : {median:.1f}x",
+          f"Minimum depth               : {dmin}x at {ranges(pos_min)}",
+          f"Maximum depth               : {dmax}x at {ranges(pos_max)}",
+          f"Properly paired alignments  : {P('Properly paired alignments (padded)')} (padded mapping)",
+          f"Reads counted twice         : {P('Diagnostic report').split('window: ')[-1].rstrip(')') if 'window: ' in P('Diagnostic report') else '(not recorded)'} (padding diagnostic report; expected 0)",
+          ""]
+
+    interior = None
+    if control is not None and len(control) == n and n - 2 * k >= 1:
+        f_int, c_int = folded[k:n - k], control[k:n - k]
+        fm, cm = float(np.mean(f_int)), float(np.mean(c_int))
+        pct = 100 * (fm - cm) / cm
+        fmin, cmin = int(np.min(f_int)), int(np.min(c_int))
+        fpos = np.flatnonzero(f_int == fmin) + k + 1
+        cpos = np.flatnonzero(c_int == cmin) + k + 1
+        same = fmin == cmin and np.array_equal(fpos, cpos)
+        interior = (pct, same)
+        L += ["Interior check (validation)",
+              f"  Positions compared        : {k + 1}-{n - k} ({n - 2 * k} bp)",
+              f"  Mean depth, corrected     : {fm:.4f}x",
+              f"  Mean depth, unpadded      : {cm:.4f}x",
+              f"  Difference                : {pct:+.3f}%",
+              f"  Minimum, corrected        : {fmin}x at {ranges(fpos)}",
+              f"  Minimum, unpadded         : {cmin}x at {ranges(cpos)}",
+              f"  Same minimum, same place  : {'YES' if same else 'NO'}",
+              "  (Interior means are NOT the specimen's mean depth; report the",
+              "   whole-genome values above.)", ""]
+    else:
+        L += ["Interior check (validation)  : not run", ""]
+
+    if end_info is not None:
+        w, worst = end_info["w"], end_info["worst"]
+        L += ["End-window check (validation)",
+              f"  Windows compared          : positions {n - w + 1}-{n} and 1-{w} (200-bp bins)",
+              f"  Result                    : {'PASSED' if end_info['passed'] else 'FAILED'}"
+              f" ({end_info['n_failed']} bin(s) differing by >= {END_MAX_PCT:g}% and >= {END_MIN_ABS:g}x)",
+              f"  Largest bin difference    : {worst[5]:+.1f}% (positions {worst[0]}-{worst[1]})",
+              f"  Step from position N to 1 : {end_info['step_f']}x folded, {end_info['step_o']}x rotated mapping",
+              f"  Reported profile          : {profile_note}", ""]
+    else:
+        L += [f"End-window check (validation) : {profile_note}", ""]
+
+    # ---------------------------- draft text ------------------------------
+    rot_text = (", then rotated to begin at [start gene, e.g. cox1], and the rotated "
+                "assembly was confirmed to be an exact cyclic shift of the original")
+    if rotated == "yes":
+        rot_clause = rot_text
+    elif rotated == "no":
+        rot_clause = ""
+    else:                     # not recorded: leave the clause for the author
+        rot_clause = "[" + rot_text + " -- keep only if rotated]"
+    methods = (
+        f"Read coverage was assessed with a circularity-aware mapping pipeline "
+        f"(version {P('Pipeline version', __version__)}; "
+        f"https://github.com/brpatric/mitogenome-coverage-pipeline). The assembly "
+        f"was confirmed to contain no redundant terminal overlap from "
+        f"circularization{rot_clause}. Reads were mapped with Bowtie2 "
+        f"v{P('bowtie2', '[version]')} in local mode to the assembly padded by "
+        f"appending its first K bp to its 3' end (K = mean insert size + 4 SD, "
+        f"minimum 300 bp, estimated with SAMtools v{P('samtools', '[version]')}), so "
+        f"that read pairs spanning the arbitrary origin of the linear sequence "
+        f"could align. Only properly paired alignments were retained, with no "
+        f"mapping-quality threshold, because reads within the duplicated window "
+        f"receive low mapping quality by design. Depth from the appended region was "
+        f"added back to the corresponding initial positions before coverage "
+        f"statistics were calculated with NumPy and pandas, and figures were drawn "
+        f"with Matplotlib. The correction was checked against an unpadded mapping "
+        f"across the genome interior, and against a second unpadded mapping, to the "
+        f"assembly rotated by half its length, across the first and last K bp.")
+    if end_info is not None and not end_info["passed"]:
+        methods += (" Because the two differed by at least 10% and 3x in at least one "
+                    "200-bp bin, depth in those end windows was taken from the "
+                    "rotated mapping.")
+    results = (f"The padding length (K) was {k} bp. Reads covered {100 * breadth / n:.1f}% "
+               f"of the {n}-bp mitogenome, with a mean depth of {mean:.1f} +/- {sd:.1f}x "
+               f"(median {median:.1f}x; range {dmin}-{dmax}x).")
+    if interior is not None:
+        pct, same = interior
+        if abs(pct) < 0.0005 and same:
+            results += (f" Across the genome interior (positions {k + 1}-{n - k}), the "
+                        f"corrected and unpadded profiles were identical in mean and "
+                        f"minimum depth, with minima at the same positions.")
+        else:
+            results += (f" Across the genome interior (positions {k + 1}-{n - k}), mean "
+                        f"depth of the corrected and unpadded profiles differed by "
+                        f"{abs(pct):.2f}%" + (", with minima at the same positions."
+                                             if same else "."))
+    if end_info is not None:
+        w = end_info["w"]
+        if end_info["passed"]:
+            results += (f" Across the first and last {w} bp, the corrected profile "
+                        f"agreed with the rotated mapping in every 200-bp bin (largest "
+                        f"difference {abs(end_info['worst'][5]):.1f}%).")
+        else:
+            results += (f" Across the first and last {w} bp, the corrected profile "
+                        f"departed from the rotated mapping in "
+                        f"{end_info['n_failed']} of the 200-bp bins (largest difference "
+                        f"{abs(end_info['worst'][5]):.1f}%), so depth at positions "
+                        f"{n - w + 1}-{n} and 1-{w} was taken from the rotated mapping.")
+
+    import textwrap
+    L += ["DRAFT TEXT (check against the values above; cite the tools as in",
+          "docs/Coverage_Methods.docx)",
+          "-" * 72, "Methods:", *textwrap.wrap(methods, 72), "",
+          "Results:", *textwrap.wrap(results, 72), ""]
+    return L
 
 
 def write_profile_outputs(prefix, profile, n, k, header, meta, depth_path,
@@ -462,6 +660,7 @@ def main():
     profile = folded
     extra_inputs = []
     end_lines = None
+    end_info = None
     if not os.path.isfile(origin_path):
         profile_note = (f"not run ({ORIGIN_FILENAME} not found; produced by "
                         f"run_pipeline.sh version 4.2 or later)")
@@ -474,7 +673,7 @@ def main():
         if result is None:
             profile_note = "not run (see note printed on screen)"
         else:
-            end_lines, passed, corrected = result
+            end_lines, passed, corrected, end_info = result
             extra_inputs = [origin_path]
             if passed:
                 profile_note = "PASSED (folded profile reported)"
@@ -511,24 +710,36 @@ def main():
     # The end-window correction never touches the interior, so this compares
     # the reported profile and the folded profile alike.
     print("")
+    control = None
     if not os.path.isfile(control_path):
         print(f"NOTE: {CONTROL_FILENAME} not found in {IN_DIR}, so the")
         print("interior check was skipped. To run it, copy that file there")
         print("(from the coverage_run/ folder) and run this script again.")
-        return 0
+    else:
+        control = read_depth_column(control_path)
+        lines = compare_to_control(folded, control, n, k, folded_name)
+        if lines is not None:
+            comparison_out_path = os.path.join(OUT_DIR, f"{out_prefix}_control_comparison.txt")
+            with open(comparison_out_path, "w") as fh:
+                fh.write("\n".join(lines) + "\n")
+                fh.write("\n".join(provenance_lines("02_fold_and_plot.py",
+                                                     [depth_path, metadata_path, control_path],
+                                                     meta)) + "\n")
+            print("\n".join(lines))
+            print(f"Interior check -> {comparison_out_path}")
 
-    control = read_depth_column(control_path)
-    lines = compare_to_control(folded, control, n, k, folded_name)
-    if lines is None:
-        return 0
-    comparison_out_path = os.path.join(OUT_DIR, f"{out_prefix}_control_comparison.txt")
-    with open(comparison_out_path, "w") as fh:
-        fh.write("\n".join(lines) + "\n")
-        fh.write("\n".join(provenance_lines("02_fold_and_plot.py",
-                                             [depth_path, metadata_path, control_path],
-                                             meta)) + "\n")
-    print("\n".join(lines))
-    print(f"Interior check -> {comparison_out_path}")
+    # ============================ REPORT ====================================
+    prov_path = os.path.join(IN_DIR, PROVENANCE_FILENAME)
+    report = build_report(out_prefix, profile, folded, control, n, k, meta,
+                          read_provenance(prov_path), end_info, profile_note)
+    inputs = [p for p in (depth_path, metadata_path, control_path, origin_path, prov_path)
+              if os.path.isfile(p)]
+    report_path = os.path.join(OUT_DIR, f"{out_prefix}_report.txt")
+    with open(report_path, "w") as fh:
+        fh.write("\n".join(report) + "\n")
+        fh.write("\n".join(provenance_lines("02_fold_and_plot.py", inputs, meta)) + "\n")
+    print("")
+    print(f"Report (all values for the Methods and Results) -> {report_path}")
     return 0
 
 
