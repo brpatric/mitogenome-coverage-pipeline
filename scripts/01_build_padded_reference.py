@@ -194,7 +194,12 @@ def diagnose(folder="."):
     proc.wait()
     dup_reads = sum(1 for v in window_copy.values() if len(v) == 2)
 
-    specimen = os.path.basename(os.path.dirname(folder))
+    # Name the report after the specimen folder: the parent of coverage_run/
+    # when run by the driver, otherwise the folder itself (by-hand runs).
+    if os.path.basename(folder) == "coverage_run":
+        specimen = os.path.basename(os.path.dirname(folder))
+    else:
+        specimen = os.path.basename(folder)
     report = os.path.join(folder, f"diagnostic_report_{specimen}_{datetime.now():%Y%m%d}.txt")
     sq = [l for l in _samtools("view", "-H", bam).splitlines() if l.startswith("@SQ")]
 

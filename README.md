@@ -95,9 +95,9 @@ Padding changes only how reads near the origin are placed, so alignments in the 
 
 ## End-window check
 
-The interior comparison cannot see the first and last *K* bp, which is exactly where padding and folding act. In two *Hogna carolinensis* specimens assembled with NOVOPlasty and rotated to begin at *cox1*, the folded profile showed excess depth over the first few hundred bases (up to 50% above the true value at position 1), although the interior comparison passed. Mapping the same reads to the unrotated assembly, where that region lies mid-sequence, gave a smooth profile. Simulated reads did not reproduce the effect, so it arises from features of particular read sets rather than from the folding arithmetic, and it cannot be ruled out in advance for any specimen.
+The interior comparison cannot see the first and last *K* bp, which is exactly where padding and folding act. In two *Hogna carolinensis* specimens assembled with NOVOPlasty and rotated to begin at *cox1*, the folded profile showed excess depth over the first few hundred bases (at position 1, about 75% above the true value), although the interior comparison passed. Mapping the same reads to the unrotated assembly, where that region lies mid-sequence, gave a smooth profile. Simulated reads did not reproduce the effect, so it arises from features of particular read sets rather than from the folding arithmetic, and it cannot be ruled out in advance for any specimen.
 
-Since version 4.2, `run_pipeline.sh` (now Phase 8) therefore maps the reads, unpadded, to a copy of the assembly starting halfway round the circle, so the original start and end lie deep in its interior. `02_fold_and_plot.py` compares that profile with the folded profile across the end windows in 200-bp bins. A bin fails if it differs by 10% or more **and** by 3× or more. If no bin fails, the folded profile is reported as before. If any bin fails, the end windows of the reported profile are taken from the origin-check mapping, the statistics file says so, and the folded profile is kept as `<prefix>_folded_depth_before_end_window_correction.txt`. Either way, the reported profile stays in the assembly's own coordinates (for example *cox1* first).
+Since version 4.2, `run_pipeline.sh` therefore also maps the reads (Phase 8), unpadded, to a copy of the assembly starting halfway round the circle, so the original start and end lie deep in its interior. `02_fold_and_plot.py` compares that profile with the folded profile across the end windows in 200-bp bins. A bin fails if it differs by 10% or more **and** by 3× or more. If no bin fails, the folded profile is reported as before. If any bin fails, the end windows of the reported profile are taken from the origin-check mapping, the statistics file says so, and the folded profile is kept as `<prefix>_folded_depth_before_end_window_correction.txt`. Either way, the reported profile stays in the assembly's own coordinates (for example *cox1* first).
 
 ## Provenance
 
@@ -107,7 +107,7 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 
 - **Do not add a MAPQ filter (`-q`).** Reads in the duplicated padding window align equally well to both copies and receive low mapping quality by design. Filtering them reintroduces the artifact. The proper-pair filter (`-f 2`) provides the quality control.
 - **Use Bowtie2 in `--local` mode**, as the driver does. End-to-end mode is unforgiving at the padded junction.
-- **Rotated assemblies:** the overlap check must be run on the assembler output before rotating, and the rotated file must be an exact cyclic shift. Since version 4.2.1 the driver requires an answer on whether the assembly was rotated and, if it was, runs both checks itself.
+- **Rotated assemblies:** the overlap check must be run on the assembler output before rotating, and the rotated file must be an exact cyclic shift. The driver requires an answer on whether the assembly was rotated and, if it was, runs both checks itself (`00_check_terminal_overlap.py`, with `--verify-rotation` for the second).
 
 ## Repository contents
 

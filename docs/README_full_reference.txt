@@ -43,13 +43,14 @@ GetOrganelle output.
 The pipeline runs in two parts:
 
   Part A (WSL/Ubuntu)
-      Indexing, mapping, filtering, and depth extraction, plus the unpadded
-      control depth used for validation, driven by a single shell script.
+      Checks on the assembly, indexing, mapping, filtering and depth
+      extraction, a padding diagnostic report, and the two check mappings
+      (unpadded control and origin check), driven by a single shell script.
 
   Part B (Windows Python/IDLE, or WSL)
       Folding the depth profile back onto true circular coordinates,
-      computing statistics, plotting, and validating the correction against
-      the unpadded control.
+      checking the correction at the ends (end-window check) and in the
+      interior (interior check), computing statistics and plotting.
 
 Typical runtime is a few minutes per specimen, dominated by read mapping.
 
@@ -177,6 +178,7 @@ Place these in one working folder, with the scripts in a scripts/ subfolder:
 
     <specimen>/
         assembly.fasta        <- circularized mitogenome, single contig
+        original_assembly.fasta <- if rotated: the unrotated assembler output
         R1.fastq.gz           <- forward reads (.fastq or .fastq.gz)
         R2.fastq.gz           <- reverse reads (.fastq or .fastq.gz)
         scripts/
@@ -338,7 +340,7 @@ the padded window. The "-f 2" proper-pair filter provides the real quality
 control here.
 
 --------------------------------------------------------------------------------
-6.2  PART B - FOLDING AND PLOTTING
+6.2  PART B - FOLDING, PLOTTING AND VALIDATION
 --------------------------------------------------------------------------------
 
 Copy these four files from coverage_run/ into the same folder as
@@ -378,7 +380,8 @@ FROM PART A, IN coverage_run/
 -----------------------------
   padded_depth.txt        Per-base depth across the padded reference
                           (N + K rows)
-  padding_metadata.txt    N, K, and padded length - required by Part B
+  padding_metadata.txt    N, K, padded length and origin-check shift -
+                          required by Part B
   padding_K.txt           The selected K, for the manuscript
   prelim.stats.txt        Insert-size statistics used to derive K
   run_provenance.txt      Run record: versions, settings, checksums,
@@ -486,8 +489,8 @@ THE END-WINDOW CHECK (version 4.2+)
 The interior comparison cannot see the first and last K bp, which is exactly
 where padding and folding act. In two Hogna carolinensis specimens assembled
 with NOVOPlasty and rotated to begin at cox1, the folded profile showed
-excess depth over the first few hundred bases (up to 50% above the true
-value at position 1), although the interior comparison passed. Mapping the
+excess depth over the first few hundred bases (at position 1, about 75%
+above the true value), although the interior comparison passed. Mapping the
 same reads to the unrotated assembly, where that region lies mid-sequence,
 gave a smooth profile. Simulated reads did not reproduce the effect, so it
 arises from features of particular read sets rather than from the folding
@@ -545,11 +548,12 @@ rather than as sequence, so consult your assembler's documentation before
 deciding how to handle them - deleting a flagged position shifts all
 downstream coordinates.
 
-overlap_check.log IS EMPTY, OR PHASE 0 REPORTS A MISSING SCRIPT
----------------------------------------------------------------
-00_check_terminal_overlap.py is not in the same folder as run_pipeline.sh.
-Earlier versions of the driver skipped the check silently in this situation;
-the current version halts. Restore the file and re-run.
+PHASE 0 REPORTS A MISSING SCRIPT
+--------------------------------
+00_check_terminal_overlap.py or 01_build_padded_reference.py is not in the
+same folder as run_pipeline.sh. The driver checks for both before doing
+anything else, and halts rather than skipping a step. Restore the file and
+re-run.
 
 "bowtie2-build: command not found"
 ----------------------------------
@@ -564,14 +568,14 @@ says so. Look at the failing bins in <prefix>_end_window_check.txt. Failures
 near position 1 or near position K point to the padded junction; failures
 confined to a long tandem repeat reflect random placement of reads among the
 repeat copies. To investigate the junction, read the diagnostic report in
-coverage_run/ (below) or view filtered.bam in a genome browser across positions N-200 to
-N+200 of the padded reference.
+coverage_run/ (below) or view filtered.bam in a genome browser across
+positions N-200 to N+200 of the padded reference.
 
 COVERAGE LOOKS DEPRESSED NEAR POSITION 1
 ----------------------------------------
-Check <prefix>_end_window_check.txt first. Confirm no "-q" MAPQ threshold has been added to the filtering step (see
-section 6.1). If the filter is clean, check <prefix>_control_comparison.txt,
-then inspect coverage_run/diagnostic_report_<specimen>_<date>.txt (MAPQ in
+Check <prefix>_end_window_check.txt first. Confirm no "-q" MAPQ threshold
+has been added to the filtering step (see section 6.1). If the filter is
+clean, check <prefix>_control_comparison.txt, then inspect coverage_run/diagnostic_report_<specimen>_<date>.txt (MAPQ in
 the padded window, soft-clipping near the junction, and the double-count
 test, which should report 0 reads in both copies). The driver writes it in
 Phase 6; for a coverage_run/ folder from an older run, produce it by hand:
