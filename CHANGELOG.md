@@ -4,6 +4,7 @@
 
 - `02_fold_and_plot.py` writes `<prefix>_report.txt`: every value to report in the Methods and Results (software versions, rotation and overlap checks, insert size, *K*, breadth, mean ± SD, median, minimum and maximum with positions, alignment counts, both check results) and draft Methods and Results sentences filled in with them. Mapping details come from `run_provenance.txt` when it is with the inputs (always, in a one-command run).
 - `run_pipeline.sh` runs Phase 9 after recording the alignment counts, so the report includes them, and lists the report in its final message.
+- Documentation: assembler-neutral wording throughout (NOVOPlasty and GetOrganelle as examples; assembler-specific advice marked as such), GetOrganelle reference added (Jin et al. 2020), and all references and DOIs rechecked.
 - Computed values are unchanged from 4.4.
 
 ## 4.4 (November 2026)

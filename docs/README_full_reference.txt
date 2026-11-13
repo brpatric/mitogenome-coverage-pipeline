@@ -760,6 +760,8 @@ the mean, consider also reporting the median depth (from
       and draft Methods and Results sentences. In a one-command run Phase 9
       now runs after the alignment counts are recorded, so the report
       includes them. Computed values are unchanged from 4.4.
+    - Documentation made assembler-neutral (NOVOPlasty and GetOrganelle as
+      examples); GetOrganelle reference [7] added; references rechecked.
 
   Version 4.4 (November 2026)
     - run_pipeline.sh runs 02_fold_and_plot.py (Phase 9) if it sits next to

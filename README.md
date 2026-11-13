@@ -125,18 +125,18 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 
 | Path | Purpose |
 | --- | --- |
-| `scripts/run_pipeline.sh` | Driver: checks, mapping, padding, filtering, depth, diagnostic report, control and origin-check depth, provenance record; runs `02_fold_and_plot.py` if present |
-| `scripts/00_check_terminal_overlap.py` | Checks for leftover circularization overlap and invalid characters; with `--verify-rotation`, confirms a rotated assembly is an exact cyclic shift of the original |
-| `scripts/01_build_padded_reference.py` | Builds the padded reference and its metadata; with `--diagnose`, writes the padding diagnostic report |
-| `scripts/02_fold_and_plot.py` | Folds depth, runs the end-window and interior checks, computes statistics, draws figures and writes the report; run by the driver (Phase 9) or by hand |
-| `scripts/03_compare_to_control.py` | Optional standalone control comparison, for profiles folded with earlier versions |
-| `docs/Coverage_pipeline_quick_start.docx` | Short quick start guide (four pages) |
-| `docs/Coverage_calculation_and_visualization_protocol_v4.5.docx` | Full step-by-step protocol with embedded scripts |
-| `docs/README_full_reference.txt` | Full reference: settings, outputs, troubleshooting, limitations |
-| `docs/Supplement_1_command_line_protocol.docx` | Condensed command-line protocol for manuscript supplements |
-| `docs/Coverage_Methods.docx` | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.5), Results and figure-legend templates, and references |
-| `CHANGELOG.md` | Version history |
-| `CITATION.cff` | Citation information (powers GitHub's “Cite this repository” button) |
+| [`scripts/run_pipeline.sh`](scripts/run_pipeline.sh) | Driver: checks, mapping, padding, filtering, depth, diagnostic report, control and origin-check depth, provenance record; runs `02_fold_and_plot.py` if present |
+| [`scripts/00_check_terminal_overlap.py`](scripts/00_check_terminal_overlap.py) | Checks for leftover circularization overlap and invalid characters; with `--verify-rotation`, confirms a rotated assembly is an exact cyclic shift of the original |
+| [`scripts/01_build_padded_reference.py`](scripts/01_build_padded_reference.py) | Builds the padded reference and its metadata; with `--diagnose`, writes the padding diagnostic report |
+| [`scripts/02_fold_and_plot.py`](scripts/02_fold_and_plot.py) | Folds depth, runs the end-window and interior checks, computes statistics, draws figures and writes the report; run by the driver (Phase 9) or by hand |
+| [`scripts/03_compare_to_control.py`](scripts/03_compare_to_control.py) | Optional standalone control comparison, for profiles folded with earlier versions |
+| [`docs/Coverage_pipeline_quick_start.docx`](docs/Coverage_pipeline_quick_start.docx) | Short quick start guide (four pages) |
+| [`docs/Coverage_calculation_and_visualization_protocol_v4.5.docx`](docs/Coverage_calculation_and_visualization_protocol_v4.5.docx) | Full step-by-step protocol with embedded scripts |
+| [`docs/README_full_reference.txt`](docs/README_full_reference.txt) | Full reference: settings, outputs, troubleshooting, limitations |
+| [`docs/Supplement_1_command_line_protocol.docx`](docs/Supplement_1_command_line_protocol.docx) | Condensed command-line protocol for manuscript supplements |
+| [`docs/Coverage_Methods.docx`](docs/Coverage_Methods.docx) | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.5), Results and figure-legend templates, and references |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history |
+| [`CITATION.cff`](CITATION.cff) | Citation information (powers GitHub's “Cite this repository” button) |
 
 ## Limitations
 
