@@ -663,6 +663,8 @@ METHODS (procedure only)
   - How the correction was validated: interior check and end-window check
     (section 8)
   - A pointer to the supplement containing the commands and scripts
+  - The pipeline itself, with its version: Patrick LB. 2026. Mitogenome
+    Coverage Pipeline, version 4.5. Zenodo. doi:10.5281/zenodo.24181781
 
 RESULTS (values)
   - K for each specimen                 <prefix>_coverage_stats.txt

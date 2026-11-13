@@ -2,6 +2,8 @@
 
 Per-base read coverage for circularized mitochondrial genomes, corrected for the artificial coverage dip at the point where the circle is cut to write a linear FASTA file.
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24181781.svg)](https://doi.org/10.5281/zenodo.24181781)
+
 **Version 4.5** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
 ## Why a correction is needed
@@ -146,7 +148,7 @@ The pipeline expects a single circular contig and paired-end reads. The overlap 
 
 If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.5. https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.5. Zenodo. [doi:10.5281/zenodo.24181781](https://doi.org/10.5281/zenodo.24181781). https://github.com/brpatric/mitogenome-coverage-pipeline
 
 BibTeX:
 
@@ -156,6 +158,8 @@ BibTeX:
   title   = {Mitogenome Coverage Pipeline},
   version = {4.5},
   year    = {2026},
+  publisher = {Zenodo},
+  doi     = {10.5281/zenodo.24181781},
   url     = {https://github.com/brpatric/mitogenome-coverage-pipeline}
 }
 ```
