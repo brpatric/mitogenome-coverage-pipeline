@@ -2,6 +2,7 @@
 
 ## Since the v4.5 release
 
+- `<prefix>_report.txt` now cites the tools in its draft Methods text (Bowtie2, SAMtools, NumPy, pandas, Matplotlib and the pipeline itself), gives the pipeline citation with its Zenodo DOI, and ends with a reference list, including the two example assemblers. Computed values are unchanged.
 - Author name, affiliation and ORCID iD (0000-0003-1969-9600) added to the citation file, README, documents and script headers; Zenodo DOI for v4.5 (10.5281/zenodo.24181781) added to the citation file, README and Methods template. Comments and documentation only: the code that runs and its results are unchanged from 4.5, but the script checksums recorded in `run_provenance.txt` differ from those of the archived v4.5 release.
 
 ## 4.5 (November 2026)

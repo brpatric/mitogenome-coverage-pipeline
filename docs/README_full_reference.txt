@@ -452,7 +452,9 @@ FROM PART B (in coverage_results/ when run by the driver; otherwise next to
                                   mean +/- SD, median, minimum and maximum
                                   (with positions), both check results, and
                                   draft Methods and Results sentences filled
-                                  in with these values (section 10)
+                                  in with these values, with in-text
+                                  citations and a reference list (pipeline
+                                  DOI included) (section 10)
   <prefix>_folded_depth.txt       Reported per-base depth in the assembly's
                                   coordinates
   <prefix>_coverage_stats.txt     MEAN, SD, MIN, MAX, BREADTH - report these;
@@ -646,8 +648,10 @@ files next to the script.
 ================================================================================
 
 Each run's <prefix>_report.txt collects every value listed below in one
-file, with draft Methods and Results sentences built from them; check the
-draft against the values and add the citations. A Methods/Results template
+file, with draft Methods and Results sentences built from them, cited, and
+a reference list (the pipeline with its DOI, Bowtie2, SAMtools, NumPy,
+pandas, Matplotlib); check the draft against the values and add the
+citation for your assembler. A Methods/Results template
 (Coverage_Methods.docx), with references and figure legend, also
 accompanies this package. Keep the procedure in the Methods and the numbers
 in the Results.

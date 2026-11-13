@@ -95,7 +95,7 @@ When the driver runs `02_fold_and_plot.py`, the `<prefix>_` files below are in `
 
 | File | Contents | What to look for |
 | --- | --- | --- |
-| `<prefix>_report.txt` | **Everything to report in the Methods and Results**: software versions, rotation and overlap checks, insert size, *K*, breadth, mean ± SD, median, minimum and maximum (with positions), both check results, and draft Methods and Results sentences built from them | Start here when writing |
+| `<prefix>_report.txt` | **Everything to report in the Methods and Results**: software versions, rotation and overlap checks, insert size, *K*, breadth, mean ± SD, median, minimum and maximum (with positions), both check results, the pipeline citation with its DOI, and draft Methods and Results sentences built from them, with in-text citations and a reference list | Start here when writing |
 | `<prefix>_coverage_stats.txt` | Genome length, *K*, mean, SD, minimum, maximum, breadth of coverage, end-window check result | Summary statistics |
 | `<prefix>_end_window_check.txt` | Folded vs origin-check depth across the end windows (last and first *K* bp), in 200-bp bins | PASSED; if FAILED, the reported profile's end windows come from the origin-check mapping |
 | `<prefix>_control_comparison.txt` | Corrected vs unpadded depth across the genome interior (positions *K*+1 to *N*−*K*) | Difference 0% or very close; same minimum at the same position(s) |

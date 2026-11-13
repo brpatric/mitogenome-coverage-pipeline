@@ -112,6 +112,54 @@ import numpy as np
 
 __version__ = "4.5"   # coverage pipeline version
 
+# Archived releases (Zenodo), for the citation in <prefix>_report.txt:
+# version -> (year, DOI). Add each new release here once it has a DOI.
+PIPELINE_RELEASES = {"4.5": ("2026", "10.5281/zenodo.24181781")}
+REPO_URL = "https://github.com/brpatric/mitogenome-coverage-pipeline"
+
+# References cited in the draft text of <prefix>_report.txt.
+REFERENCES = [
+    "Danecek P, Bonfield JK, Liddle J, Marshall J, Ohan V, Pollard MO, "
+    "Whitwham A, Keane T, McCarthy SA, Davies RM, Li H. 2021. Twelve years of "
+    "SAMtools and BCFtools. GigaScience 10(2): giab008. "
+    "doi:10.1093/gigascience/giab008",
+    "Harris CR, Millman KJ, van der Walt SJ, Gommers R, Virtanen P, "
+    "Cournapeau D, Wieser E, Taylor J, Berg S, Smith NJ, Kern R, Picus M, "
+    "Hoyer S, van Kerkwijk MH, Brett M, Haldane A, Fernandez del Rio J, Wiebe M, "
+    "Peterson P, Gerard-Marchant P, Sheppard K, Reddy T, Weckesser W, Abbasi H, "
+    "Gohlke C, Oliphant TE. 2020. Array programming with NumPy. Nature "
+    "585(7825): 357-362. doi:10.1038/s41586-020-2649-2",
+    "Hunter JD. 2007. Matplotlib: a 2D graphics environment. Computing in "
+    "Science & Engineering 9(3): 90-95. doi:10.1109/MCSE.2007.55",
+    "Langmead B, Salzberg SL. 2012. Fast gapped-read alignment with Bowtie 2. "
+    "Nature Methods 9(4): 357-359. doi:10.1038/nmeth.1923",
+    "McKinney W. 2010. Data structures for statistical computing in Python. "
+    "In: van der Walt S, Millman J, editors. Proceedings of the 9th Python in "
+    "Science Conference. p. 56-61. doi:10.25080/Majora-92bf1922-00a",
+]
+ASSEMBLER_REFERENCES = [
+    "Dierckxsens N, Mardulyn P, Smits G. 2017. NOVOPlasty: de novo assembly of "
+    "organelle genomes from whole genome data. Nucleic Acids Research 45(4): "
+    "e18. doi:10.1093/nar/gkw955",
+    "Jin JJ, Yu WB, Yang JB, Song Y, dePamphilis CW, Yi TS, Li DZ. 2020. "
+    "GetOrganelle: a fast and versatile toolkit for accurate de novo assembly "
+    "of organelle genomes. Genome Biology 21(1): 241. "
+    "doi:10.1186/s13059-020-02154-5",
+]
+
+
+def pipeline_citation(version):
+    """In-text citation and reference-list entry for this pipeline version."""
+    year, doi = PIPELINE_RELEASES.get(version, (None, None))
+    if doi:
+        return (f"Patrick {year}",
+                f"Patrick LB. {year}. Mitogenome Coverage Pipeline, version "
+                f"{version}. Zenodo. doi:{doi}. {REPO_URL}")
+    return ("Patrick [year]",
+            f"Patrick LB. [year]. Mitogenome Coverage Pipeline, version {version}. "
+            f"Zenodo. doi:[DOI of the version {version} release; see {REPO_URL}]. "
+            f"{REPO_URL}")
+
 # ============================= EDIT THESE ===================================
 PLOT_TITLE = "Per-base Read Coverage"     # set to the full title you want shown, e.g. "Per-base Read Coverage: Genus species"
 LINEAR_COLOR = "#648FFF"
@@ -400,10 +448,13 @@ def build_report(prefix, profile, folded, control, n, k, meta, prov, end_info,
               "coverage_run/run_provenance.txt next to the other input files and run",
               "this again. (A one-command run with run_pipeline.sh includes them.)", ""]
 
+    version = P('Pipeline version', __version__)
+    cite_in, cite_ref = pipeline_citation(version)
     L += ["METHODS (procedure and software)",
           "-" * 72,
           f"Pipeline                    : Mitogenome Coverage Pipeline, version "
-          f"{P('Pipeline version', __version__)}",
+          f"{version}",
+          f"Pipeline citation           : {cite_ref}",
           f"Assembly                    : {meta.get('original_header', '?')} ({n} bp)",
           f"Rotated after assembly      : {rotated or '(not recorded)'}",
           f"Overlap check, unrotated    : {P('Overlap (unrotated)', 'not run (assembly not rotated)' if rotated == 'no' else '(not recorded)')}",
@@ -478,20 +529,20 @@ def build_report(prefix, profile, folded, control, n, k, meta, prov, end_info,
         rot_clause = "[" + rot_text + " -- keep only if rotated]"
     methods = (
         f"Read coverage was assessed with a circularity-aware mapping pipeline "
-        f"(version {P('Pipeline version', __version__)}; "
-        f"https://github.com/brpatric/mitogenome-coverage-pipeline). The assembly "
+        f"(version {version}; {cite_in}). The assembly "
         f"was confirmed to contain no redundant terminal overlap from "
         f"circularization{rot_clause}. Reads were mapped with Bowtie2 "
-        f"v{P('bowtie2', '[version]')} in local mode to the assembly padded by "
+        f"v{P('bowtie2', '[version]')} in local mode (Langmead & Salzberg 2012) to the assembly padded by "
         f"appending its first K bp to its 3' end (K = mean insert size + 4 SD, "
-        f"minimum 300 bp, estimated with SAMtools v{P('samtools', '[version]')}), so "
+        f"minimum 300 bp, estimated with SAMtools v{P('samtools', '[version]')}; Danecek et al. "
+        f"2021), so "
         f"that read pairs spanning the arbitrary origin of the linear sequence "
         f"could align. Only properly paired alignments were retained, with no "
         f"mapping-quality threshold, because reads within the duplicated window "
         f"receive low mapping quality by design. Depth from the appended region was "
         f"added back to the corresponding initial positions before coverage "
-        f"statistics were calculated with NumPy and pandas, and figures were drawn "
-        f"with Matplotlib. The correction was checked against an unpadded mapping "
+        f"statistics were calculated with NumPy (Harris et al. 2020) and pandas "
+        f"(McKinney 2010), and figures were drawn with Matplotlib (Hunter 2007). The correction was checked against an unpadded mapping "
         f"across the genome interior, and against a second unpadded mapping, to the "
         f"assembly rotated by half its length, across the first and last K bp.")
     if end_info is not None and not end_info["passed"]:
@@ -526,10 +577,17 @@ def build_report(prefix, profile, folded, control, n, k, meta, prov, end_info,
                         f"{n - w + 1}-{n} and 1-{w} was taken from the rotated mapping.")
 
     import textwrap
-    L += ["DRAFT TEXT (check against the values above; cite the tools as in",
-          "docs/Coverage_Methods.docx)",
+    L += ["DRAFT TEXT (check against the values above)",
           "-" * 72, "Methods:", *textwrap.wrap(methods, 72), "",
           "Results:", *textwrap.wrap(results, 72), ""]
+    L += ["REFERENCES (for the draft text)",
+          "-" * 72]
+    for r in sorted(REFERENCES + [cite_ref]):
+        L += textwrap.wrap(r, 72, subsequent_indent="    ", break_on_hyphens=False)
+    L += ["", "Also cite the assembler you used, for example:"]
+    for r in ASSEMBLER_REFERENCES:
+        L += textwrap.wrap(r, 72, subsequent_indent="    ", break_on_hyphens=False)
+    L += [""]
     return L
 
 
