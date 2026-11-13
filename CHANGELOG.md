@@ -1,5 +1,9 @@
 # Changelog
 
+## Since the v4.5 release
+
+- Author name, affiliation and ORCID iD (0000-0003-1969-9600) added to the citation file, README, documents and script headers; Zenodo DOI for v4.5 (10.5281/zenodo.24181781) added to the citation file, README and Methods template. Comments and documentation only: the code that runs and its results are unchanged from 4.5, but the script checksums recorded in `run_provenance.txt` differ from those of the archived v4.5 release.
+
 ## 4.5 (November 2026)
 
 - `02_fold_and_plot.py` writes `<prefix>_report.txt`: every value to report in the Methods and Results (software versions, rotation and overlap checks, insert size, *K*, breadth, mean ± SD, median, minimum and maximum with positions, alignment counts, both check results) and draft Methods and Results sentences filled in with them. Mapping details come from `run_provenance.txt` when it is with the inputs (always, in a one-command run).

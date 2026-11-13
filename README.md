@@ -6,6 +6,8 @@ Per-base read coverage for circularized mitochondrial genomes, corrected for the
 
 **Version 4.5** (November 2026) · Bowtie2 · SAMtools · Python (NumPy, pandas, Matplotlib)
 
+**Author:** L. Brian Patrick, Department of Biological Sciences, Dakota Wesleyan University, Mitchell, SD, USA · ORCID [0000-0003-1969-9600](https://orcid.org/0000-0003-1969-9600)
+
 ## Why a correction is needed
 
 A circular mitogenome is a closed loop, but its FASTA file is linear, with an arbitrary cut point between the last base and the first. Aligners treat that cut point as a real end. Reads that span it cannot align contiguously, and read pairs with one mate on either side look a whole genome apart, so they fail proper-pair filtering. The result is a coverage dip at both ends of the sequence that is easily mistaken for a poorly assembled region.

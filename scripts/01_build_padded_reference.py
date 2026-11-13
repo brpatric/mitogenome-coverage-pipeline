@@ -2,6 +2,12 @@
 """
 01_build_padded_reference.py
 
+Author
+------
+L. Brian Patrick, Department of Biological Sciences, Dakota Wesleyan
+University, Mitchell, SD, USA. ORCID 0000-0003-1969-9600 (https://orcid.org/0000-0003-1969-9600)
+Repository: https://github.com/brpatric/mitogenome-coverage-pipeline
+
 Purpose
 -------
 Builds the "padded" linear reference used to correct for circularity.

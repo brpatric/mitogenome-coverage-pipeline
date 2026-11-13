@@ -8,6 +8,11 @@ coverage artifact introduced at the circular origin.
 
 Version 4.5 (November 2026). See section 13 for the version history.
 
+Author: L. Brian Patrick, Department of Biological Sciences, Dakota Wesleyan
+        University, Mitchell, SD, USA. ORCID 0000-0003-1969-9600 (https://orcid.org/0000-0003-1969-9600)
+Repository: https://github.com/brpatric/mitogenome-coverage-pipeline
+Cite as: doi:10.5281/zenodo.24181781 (version 4.5)
+
 
 ================================================================================
 TABLE OF CONTENTS

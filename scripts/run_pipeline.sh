@@ -2,6 +2,10 @@
 # =============================================================================
 # run_pipeline.sh
 #
+# Author: L. Brian Patrick, Department of Biological Sciences, Dakota
+# Wesleyan University, Mitchell, SD, USA. ORCID 0000-0003-1969-9600 (https://orcid.org/0000-0003-1969-9600)
+# Repository: https://github.com/brpatric/mitogenome-coverage-pipeline
+#
 # Circular-aware coverage mapping pipeline for a circularized
 # mitogenome (developed with NOVOPlasty assemblies). Run this INSIDE WSL
 # (Ubuntu). See README.txt for the full step-by-step explanation of what

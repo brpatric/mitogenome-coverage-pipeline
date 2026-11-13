@@ -2,6 +2,12 @@
 """
 02_fold_and_plot.py
 
+Author
+------
+L. Brian Patrick, Department of Biological Sciences, Dakota Wesleyan
+University, Mitchell, SD, USA. ORCID 0000-0003-1969-9600 (https://orcid.org/0000-0003-1969-9600)
+Repository: https://github.com/brpatric/mitogenome-coverage-pipeline
+
 Purpose
 -------
 Takes the raw per-base depth from the PADDED reference (length N+K) and
