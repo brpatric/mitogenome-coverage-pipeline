@@ -15,6 +15,7 @@ identifiers:
   - type: doi
     value: "10.5281/zenodo.24181781"
     description: "Zenodo archive of release v4.5"
+license: MIT
 repository-code: "https://github.com/brpatric/mitogenome-coverage-pipeline"
 url: "https://brpatric.github.io/mitogenome-coverage-pipeline/"
 keywords:

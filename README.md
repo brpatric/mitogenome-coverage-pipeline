@@ -141,6 +141,7 @@ Each run records how it was produced. `run_pipeline.sh` writes `run_provenance.t
 | [`docs/Coverage_Methods.docx`](docs/Coverage_Methods.docx) | Methods and Results template for manuscripts: a condensed Methods paragraph citing this repository (version 4.5), Results and figure-legend templates, and references |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
 | [`CITATION.cff`](CITATION.cff) | Citation information (powers GitHub's “Cite this repository” button) |
+| [`LICENSE`](LICENSE) | MIT License |
 
 ## Limitations
 
@@ -179,3 +180,7 @@ Please also cite the tools the pipeline runs: Bowtie2 (Langmead & Salzberg 2012)
 5. Hunter JD. 2007. Matplotlib: a 2D graphics environment. *Computing in Science & Engineering* 9(3): 90–95. [doi:10.1109/MCSE.2007.55](https://doi.org/10.1109/MCSE.2007.55)
 6. McKinney W. 2010. Data structures for statistical computing in Python. In: van der Walt S, Millman J, editors. *Proceedings of the 9th Python in Science Conference*. p. 56–61. [doi:10.25080/Majora-92bf1922-00a](https://doi.org/10.25080/Majora-92bf1922-00a)
 7. Jin JJ, Yu WB, Yang JB, Song Y, dePamphilis CW, Yi TS, Li DZ. 2020. GetOrganelle: a fast and versatile toolkit for accurate de novo assembly of organelle genomes. *Genome Biology* 21(1): 241. [doi:10.1186/s13059-020-02154-5](https://doi.org/10.1186/s13059-020-02154-5)
+
+## License
+
+Released under the MIT License; see [`LICENSE`](LICENSE).
