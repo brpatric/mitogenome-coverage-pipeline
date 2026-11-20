@@ -10,7 +10,7 @@ Per-base read coverage for circularized mitochondrial genomes, corrected for the
 
 **Cite as:**
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.5. Zenodo. [doi:10.5281/zenodo.24181781](https://doi.org/10.5281/zenodo.24181781). https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick, L. B. (2026). *Mitogenome Coverage Pipeline* (Version 4.5) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.24181781
 
 ## Why a correction is needed
 
@@ -155,7 +155,7 @@ The pipeline expects a single circular contig and paired-end reads. The overlap 
 
 If you use this pipeline, please cite it with the version you ran (recorded in `run_provenance.txt` and in the provenance block of each statistics file):
 
-> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.5. Zenodo. [doi:10.5281/zenodo.24181781](https://doi.org/10.5281/zenodo.24181781). https://github.com/brpatric/mitogenome-coverage-pipeline
+> Patrick, L. B. (2026). *Mitogenome Coverage Pipeline* (Version 4.5) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.24181781
 
 BibTeX:
 
