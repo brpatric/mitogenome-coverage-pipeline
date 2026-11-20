@@ -8,6 +8,10 @@ Per-base read coverage for circularized mitochondrial genomes, corrected for the
 
 **Author:** L. Brian Patrick, Department of Biological Sciences, Dakota Wesleyan University, Mitchell, SD, USA · ORCID [0000-0003-1969-9600](https://orcid.org/0000-0003-1969-9600)
 
+**Cite as:**
+
+> Patrick LB. 2026. Mitogenome Coverage Pipeline, version 4.5. Zenodo. [doi:10.5281/zenodo.24181781](https://doi.org/10.5281/zenodo.24181781). https://github.com/brpatric/mitogenome-coverage-pipeline
+
 ## Why a correction is needed
 
 A circular mitogenome is a closed loop, but its FASTA file is linear, with an arbitrary cut point between the last base and the first. Aligners treat that cut point as a real end. Reads that span it cannot align contiguously, and read pairs with one mate on either side look a whole genome apart, so they fail proper-pair filtering. The result is a coverage dip at both ends of the sequence that is easily mistaken for a poorly assembled region.
